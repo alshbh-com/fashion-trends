@@ -15,8 +15,7 @@ import { toast } from 'sonner';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface QuantityPricingTier {
-  min: number;
-  max: number;
+  quantity: number;  // min quantity to unlock this price
   price: number;
 }
 
@@ -27,10 +26,14 @@ interface VariantSelection {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const getEffectivePrice = (basePrice: number, tiers: QuantityPricingTier[], total: number) => {
+// DB format: [{quantity: 1, price: 249}, {quantity: 2, price: 220}, ...]
+// Returns the price per unit for the given total quantity
+const getEffectivePrice = (basePrice: number, tiers: QuantityPricingTier[], total: number): number => {
   if (!tiers || tiers.length === 0) return basePrice;
-  const tier = [...tiers].sort((a, b) => b.min - a.min).find(t => total >= t.min);
-  return tier ? tier.price : basePrice;
+  // Sort descending by quantity threshold, pick first where total >= threshold
+  const sorted = [...tiers].sort((a, b) => b.quantity - a.quantity);
+  const matched = sorted.find(t => total >= t.quantity);
+  return matched ? matched.price : basePrice;
 };
 
 const MAX_QTY = 12;
@@ -436,10 +439,11 @@ const ProductPage = () => {
             <h3 className="text-sm font-bold mb-2 text-primary">🎁 عروض الكمية</h3>
             <div className="space-y-1">
               {tiers.map((t, i) => {
-                const isActive = totalQty >= t.min && (t.max == null || totalQty <= t.max);
+                const nextTier = tiers[i + 1];
+                const isActive = totalQty >= t.quantity && (!nextTier || totalQty < nextTier.quantity);
                 return (
                   <div key={i} className={`flex justify-between text-sm rounded-lg px-2 py-1 transition-all ${isActive ? 'bg-primary text-primary-foreground font-bold' : ''}`}>
-                    <span>{t.min}{t.max ? ` – ${t.max}` : '+'} قطعة</span>
+                    <span>{t.quantity}{nextTier ? ` – ${nextTier.quantity - 1}` : '+'} قطعة</span>
                     <span>{t.price} ج.م / قطعة</span>
                   </div>
                 );
