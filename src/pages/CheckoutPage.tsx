@@ -68,11 +68,12 @@ const CheckoutPage = () => {
       if (custError) throw custError;
 
       // Create order
+      // total_amount = products total + shipping (once only — no double addition)
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
           customer_id: customer.id,
-          total_amount: grandTotal,
+          total_amount: grandTotal,   // totalPrice (products) + shippingCost — exactly once
           shipping_cost: shippingCost,
           governorate_id: govId,
           notes,
@@ -97,7 +98,7 @@ const CheckoutPage = () => {
 
       setOrderNumber(order.order_number || 0);
       clearCart();
-      navigator.vibrate?.(200);
+      navigator.vibrate?.([100, 50, 100]);
     } catch (err) {
       console.error(err);
       toast.error('حدث خطأ أثناء إرسال الطلب');
