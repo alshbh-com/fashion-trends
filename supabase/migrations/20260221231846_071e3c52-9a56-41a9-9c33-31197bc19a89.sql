@@ -1,0 +1,1 @@
+ALTER TABLE public.app_settings ADD COLUMN IF NOT EXISTS theme_mode text NOT NULL DEFAULT 'light';

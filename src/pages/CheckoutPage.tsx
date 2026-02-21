@@ -68,12 +68,12 @@ const CheckoutPage = () => {
       if (custError) throw custError;
 
       // Create order
-      // total_amount = products total + shipping (once only — no double addition)
+      // total_amount = products only (shipping stored separately to avoid double-counting)
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
           customer_id: customer.id,
-          total_amount: grandTotal,   // totalPrice (products) + shippingCost — exactly once
+          total_amount: totalPrice,   // products only — shipping is in shipping_cost field
           shipping_cost: shippingCost,
           governorate_id: govId,
           notes,

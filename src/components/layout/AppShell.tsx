@@ -45,6 +45,17 @@ export const AppShell = ({ children }: { children: ReactNode }) => {
     return () => clearTimeout(timer);
   }, []);
 
+  // Apply theme_mode from DB
+  useEffect(() => {
+    if (!settings) return;
+    const mode = (settings as any).theme_mode;
+    if (mode === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [settings]);
+
   return (
     <>
       <AnimatePresence>
