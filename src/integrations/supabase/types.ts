@@ -215,6 +215,7 @@ export type Database = {
           id: string
           invoice_name: string
           platform_name: string
+          theme_mode: string
           updated_at: string | null
           updated_by: string | null
         }
@@ -225,6 +226,7 @@ export type Database = {
           id?: string
           invoice_name?: string
           platform_name?: string
+          theme_mode?: string
           updated_at?: string | null
           updated_by?: string | null
         }
@@ -235,6 +237,7 @@ export type Database = {
           id?: string
           invoice_name?: string
           platform_name?: string
+          theme_mode?: string
           updated_at?: string | null
           updated_by?: string | null
         }

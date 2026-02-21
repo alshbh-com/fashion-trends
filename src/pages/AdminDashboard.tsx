@@ -6,8 +6,8 @@ import { useAppSettings } from '@/hooks/useAppSettings';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useState } from 'react';
-import { LogOut, Image, Palette, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { LogOut, Image, Palette, Loader2, Sun, Moon } from 'lucide-react';
 import { toast } from 'sonner';
 
 const AdminDashboard = () => {
@@ -17,7 +17,15 @@ const AdminDashboard = () => {
   const [bannerUrl, setBannerUrl] = useState('');
   const [bannerTitle, setBannerTitle] = useState('');
   const [themeHue, setThemeHue] = useState('340');
+  const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light');
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (settings) {
+      setThemeHue(settings.active_theme || '340');
+      setThemeMode((settings as any).theme_mode === 'dark' ? 'dark' : 'light');
+    }
+  }, [settings]);
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   if (!isAuthenticated) return <Navigate to="/admin" replace />;
@@ -43,7 +51,7 @@ const AdminDashboard = () => {
     setSaving(true);
     const { error } = await supabase
       .from('app_settings')
-      .update({ active_theme: themeHue, updated_at: new Date().toISOString() })
+      .update({ active_theme: themeHue, theme_mode: themeMode, updated_at: new Date().toISOString() } as any)
       .eq('id', 'main');
     setSaving(false);
     if (error) { toast.error('حدث خطأ'); return; }
@@ -88,6 +96,26 @@ const AdminDashboard = () => {
             <Palette size={20} className="text-primary" />
             <h2 className="font-bold">ألوان الثيم</h2>
           </div>
+
+          {/* Light / Dark Toggle */}
+          <div>
+            <label className="text-sm text-muted-foreground block mb-2">وضع الألوان</label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setThemeMode('light')}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 transition-all ${themeMode === 'light' ? 'border-primary bg-primary/10 font-bold' : 'border-border'}`}
+              >
+                <Sun size={18} /> فاتح
+              </button>
+              <button
+                onClick={() => setThemeMode('dark')}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 transition-all ${themeMode === 'dark' ? 'border-primary bg-primary/10 font-bold' : 'border-border'}`}
+              >
+                <Moon size={18} /> داكن
+              </button>
+            </div>
+          </div>
+
           <div>
             <label className="text-sm text-muted-foreground block mb-1">Hue (0-360)</label>
             <Input type="range" min="0" max="360" value={themeHue} onChange={e => setThemeHue(e.target.value)} />

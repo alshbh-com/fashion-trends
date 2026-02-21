@@ -343,12 +343,12 @@ const ProductPage = () => {
         .select().single();
       if (custErr) throw custErr;
 
-      // 2. Create order — totalProductPrice already = unit * qty (no shipping added here)
+      // 2. Create order — total_amount = products only (shipping stored separately)
       const { data: order, error: orderErr } = await supabase
         .from('orders')
         .insert({
           customer_id: customer.id,
-          total_amount: grandTotal,         // products + shipping — one time only
+          total_amount: totalProductPrice,   // products only — shipping in shipping_cost field
           shipping_cost: shippingCost,
           governorate_id: buyGovId,
           notes: buyNotes || null,
@@ -485,9 +485,9 @@ const ProductPage = () => {
         {/* ─────────────────────────────────────────────────────
             DIRECT BUY FORM (inline on product page)
         ───────────────────────────────────────────────────── */}
-        <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
-          <h3 className="font-bold text-base">🛒 الشراء المباشر</h3>
-          <p className="text-xs text-muted-foreground">أكمل بياناتك لإتمام الطلب مباشرة</p>
+        <div className="bg-card border-2 border-primary rounded-2xl p-5 space-y-4 shadow-lg">
+          <h3 className="font-bold text-xl text-primary">🛒 الشراء المباشر</h3>
+          <p className="text-sm text-muted-foreground">أكمل بياناتك لإتمام الطلب مباشرة بدون سلة</p>
 
           <form onSubmit={handleDirectBuy} className="space-y-3">
             <div>
