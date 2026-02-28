@@ -485,8 +485,8 @@ const ProductPage = () => {
         {/* ─────────────────────────────────────────────────────
             DIRECT BUY FORM (inline on product page)
         ───────────────────────────────────────────────────── */}
-        <div className="bg-card border-2 border-primary rounded-2xl p-5 space-y-4 shadow-lg">
-          <h3 className="font-bold text-xl text-primary">🛒 الشراء المباشر</h3>
+        <div className="bg-primary/10 rounded-2xl p-5 space-y-4 shadow-lg border-2 border-primary/30">
+          <h3 className="font-bold text-xl text-primary">🛒 اطلب الآن</h3>
           <p className="text-sm text-muted-foreground">أكمل بياناتك لإتمام الطلب مباشرة بدون سلة</p>
 
           <form onSubmit={handleDirectBuy} className="space-y-3">
