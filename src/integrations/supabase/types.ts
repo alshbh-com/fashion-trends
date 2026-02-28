@@ -545,6 +545,33 @@ export type Database = {
         }
         Relationships: []
       }
+      offices: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          logo_url: string | null
+          name: string
+          watermark_name: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          logo_url?: string | null
+          name: string
+          watermark_name?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          logo_url?: string | null
+          name?: string
+          watermark_name?: string | null
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           color: string | null
