@@ -123,21 +123,21 @@ const VariantSelectorRow = ({
 }) => {
   const sizes = getSizesForColor(sel.color);
   return (
-    <div className="bg-muted rounded-xl p-3 space-y-2">
+    <div className="bg-background rounded-xl p-3 space-y-3 border border-primary/20 shadow-sm">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-muted-foreground">قطعة {index + 1}</span>
+        <span className="text-sm font-bold text-primary">📦 قطعة {index + 1}</span>
         {index > 0 && (
-          <button onClick={() => onRemove(index)} className="text-destructive text-xs">حذف</button>
+          <button onClick={() => onRemove(index)} className="text-destructive text-xs font-semibold">حذف</button>
         )}
       </div>
       {/* Color */}
       <div>
-        <p className="text-xs text-muted-foreground mb-1">اللون</p>
-        <div className="flex flex-wrap gap-1.5">
+        <p className="text-xs font-bold text-foreground mb-1.5">اللون</p>
+        <div className="flex flex-wrap gap-2">
           {colors.map(c => (
             <button key={c}
               onClick={() => onChange(index, { ...sel, color: c, size: '' })}
-              className={`px-3 py-1 rounded-lg text-xs border transition-all ${sel.color === c ? 'border-primary bg-primary text-primary-foreground font-semibold' : 'border-border bg-background'}`}
+              className={`px-4 py-1.5 rounded-lg text-sm font-semibold border-2 transition-all ${sel.color === c ? 'border-primary bg-primary text-primary-foreground shadow-md scale-105' : 'border-primary/30 bg-primary/5 text-primary hover:bg-primary/10'}`}
             >{c}</button>
           ))}
         </div>
@@ -145,27 +145,27 @@ const VariantSelectorRow = ({
       {/* Size */}
       {sel.color && sizes.length > 0 && (
         <div>
-          <p className="text-xs text-muted-foreground mb-1">المقاس</p>
-          <div className="flex flex-wrap gap-1.5">
+          <p className="text-xs font-bold text-foreground mb-1.5">المقاس</p>
+          <div className="flex flex-wrap gap-2">
             {sizes.map(s => (
               <button key={s}
                 onClick={() => onChange(index, { ...sel, size: s })}
-                className={`px-3 py-1 rounded-lg text-xs border transition-all ${sel.size === s ? 'border-primary bg-primary text-primary-foreground font-semibold' : 'border-border bg-background'}`}
+                className={`px-4 py-1.5 rounded-lg text-sm font-semibold border-2 transition-all ${sel.size === s ? 'border-primary bg-primary text-primary-foreground shadow-md scale-105' : 'border-primary/30 bg-primary/5 text-primary hover:bg-primary/10'}`}
               >{s}</button>
             ))}
           </div>
         </div>
       )}
       {/* Qty */}
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">الكمية</span>
-        <div className="flex items-center gap-2 bg-background rounded-lg px-2 py-1">
-          <button onClick={() => onChange(index, { ...sel, quantity: Math.max(1, sel.quantity - 1) })}>
-            <Minus size={12} />
+      <div className="flex items-center gap-3">
+        <span className="text-xs font-bold text-foreground">الكمية</span>
+        <div className="flex items-center gap-3 bg-primary/10 rounded-xl px-3 py-1.5 border border-primary/20">
+          <button onClick={() => onChange(index, { ...sel, quantity: Math.max(1, sel.quantity - 1) })} className="text-primary">
+            <Minus size={14} />
           </button>
-          <span className="text-sm font-semibold w-5 text-center">{sel.quantity}</span>
-          <button onClick={() => onChange(index, { ...sel, quantity: sel.quantity + 1 })}>
-            <Plus size={12} />
+          <span className="text-base font-bold text-primary w-6 text-center">{sel.quantity}</span>
+          <button onClick={() => onChange(index, { ...sel, quantity: sel.quantity + 1 })} className="text-primary">
+            <Plus size={14} />
           </button>
         </div>
       </div>
@@ -454,8 +454,8 @@ const ProductPage = () => {
         )}
 
         {/* ── Variant selections ── */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-bold">اختر اللون والمقاس والكمية</h3>
+        <div className="bg-primary/10 rounded-2xl p-4 space-y-3 border-2 border-primary/30 shadow-lg">
+          <h3 className="font-bold text-lg text-primary">🎨 اختر اللون والمقاس والكمية</h3>
           {variants.map((sel, i) => (
             <VariantSelectorRow
               key={i}
