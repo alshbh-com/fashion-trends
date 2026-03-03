@@ -1,21 +1,22 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useProduct, useRelatedProducts } from '@/hooks/useProducts';
 import { useCart } from '@/contexts/CartContext';
 import { useGovernorates } from '@/hooks/useGovernorates';
 import { supabase } from '@/integrations/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Share2, ShoppingCart, Star, Minus, Plus, ChevronLeft, ChevronRight, CheckCircle2, Loader2 } from 'lucide-react';
+import { ArrowRight, Share2, ShoppingCart, Star, Minus, Plus, ChevronLeft, ChevronRight, CheckCircle2, Loader2, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { ProductCard } from '@/components/product/ProductCard';
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
+import { trackEvent } from '@/lib/analytics';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface QuantityPricingTier {
-  quantity: number;  // min quantity to unlock this price
+  quantity: number;
   price: number;
 }
 
@@ -26,11 +27,8 @@ interface VariantSelection {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-// DB format: [{quantity: 1, price: 249}, {quantity: 2, price: 220}, ...]
-// Returns the price per unit for the given total quantity
 const getEffectivePrice = (basePrice: number, tiers: QuantityPricingTier[], total: number): number => {
   if (!tiers || tiers.length === 0) return basePrice;
-  // Sort descending by quantity threshold, pick first where total >= threshold
   const sorted = [...tiers].sort((a, b) => b.quantity - a.quantity);
   const matched = sorted.find(t => total >= t.quantity);
   return matched ? matched.price : basePrice;
@@ -47,63 +45,38 @@ const ImageGallery = ({ images, productName }: { images: string[]; productName: 
   const goNext = useCallback(() => setCurrent(c => (c + 1) % images.length), [images.length]);
   const goPrev = useCallback(() => setCurrent(c => (c - 1 + images.length) % images.length), [images.length]);
 
-  const handleTouchStart = (e: React.TouchEvent) => {
-    dragStartX.current = e.touches[0].clientX;
-  };
+  const handleTouchStart = (e: React.TouchEvent) => { dragStartX.current = e.touches[0].clientX; };
   const handleTouchEnd = (e: React.TouchEvent) => {
     const diff = dragStartX.current - e.changedTouches[0].clientX;
     if (Math.abs(diff) > 50) diff > 0 ? goNext() : goPrev();
   };
-  const handleMouseDown = (e: React.MouseEvent) => {
-    dragStartX.current = e.clientX;
-  };
+  const handleMouseDown = (e: React.MouseEvent) => { dragStartX.current = e.clientX; };
   const handleMouseUp = (e: React.MouseEvent) => {
     const diff = dragStartX.current - e.clientX;
     if (Math.abs(diff) > 50) diff > 0 ? goNext() : goPrev();
   };
 
   return (
-    <div
-      ref={containerRef}
-      className="relative w-full aspect-square overflow-hidden bg-muted select-none"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      onMouseDown={handleMouseDown}
-      onMouseUp={handleMouseUp}
-      style={{ cursor: 'grab' }}
-    >
+    <div ref={containerRef} className="relative w-full aspect-square overflow-hidden bg-muted select-none"
+      onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}
+      onMouseDown={handleMouseDown} onMouseUp={handleMouseUp} style={{ cursor: 'grab' }}>
       <AnimatePresence mode="wait" initial={false}>
-        <motion.img
-          key={current}
-          src={images[current]}
-          alt={`${productName} ${current + 1}`}
+        <motion.img key={current} src={images[current]} alt={`${productName} ${current + 1}`}
           className="w-full h-full object-cover pointer-events-none"
-          initial={{ opacity: 0, x: 60 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -60 }}
-          transition={{ duration: 0.25 }}
-          draggable={false}
-        />
+          initial={{ opacity: 0, x: 60 }} animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -60 }} transition={{ duration: 0.25 }} draggable={false} />
       </AnimatePresence>
-
       {images.length > 1 && (
         <>
-          <button onClick={goPrev} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-background/70 flex items-center justify-center shadow">
-            <ChevronRight size={16} />
-          </button>
-          <button onClick={goNext} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-background/70 flex items-center justify-center shadow">
-            <ChevronLeft size={16} />
-          </button>
+          <button onClick={goPrev} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-background/70 flex items-center justify-center shadow"><ChevronRight size={16} /></button>
+          <button onClick={goNext} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-background/70 flex items-center justify-center shadow"><ChevronLeft size={16} /></button>
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
             {images.map((_, i) => (
               <button key={i} onClick={() => setCurrent(i)}
-                className={`h-2 rounded-full transition-all ${i === current ? 'w-5 bg-primary' : 'w-2 bg-foreground/30'}`}
-              />
+                className={`h-2 rounded-full transition-all ${i === current ? 'w-5 bg-primary' : 'w-2 bg-foreground/30'}`} />
             ))}
           </div>
-          <span className="absolute top-3 left-3 bg-background/70 text-xs px-2 py-0.5 rounded-full">
-            {current + 1} / {images.length}
-          </span>
+          <span className="absolute top-3 left-3 bg-background/70 text-xs px-2 py-0.5 rounded-full">{current + 1} / {images.length}</span>
         </>
       )}
     </div>
@@ -112,7 +85,7 @@ const ImageGallery = ({ images, productName }: { images: string[]; productName: 
 
 // ─── Variant Selector Row ─────────────────────────────────────────────────────
 const VariantSelectorRow = ({
-  sel, colors, getSizesForColor, onChange, onRemove, index,
+  sel, colors, getSizesForColor, onChange, onRemove, index, locked,
 }: {
   sel: VariantSelection;
   colors: string[];
@@ -120,13 +93,14 @@ const VariantSelectorRow = ({
   onChange: (index: number, updated: VariantSelection) => void;
   onRemove: (index: number) => void;
   index: number;
+  locked?: boolean;
 }) => {
   const sizes = getSizesForColor(sel.color);
   return (
     <div className="bg-background rounded-xl p-3 space-y-3 border border-primary/20 shadow-sm">
       <div className="flex items-center justify-between">
         <span className="text-sm font-bold text-primary">📦 قطعة {index + 1}</span>
-        {index > 0 && (
+        {index > 0 && !locked && (
           <button onClick={() => onRemove(index)} className="text-destructive text-xs font-semibold">حذف</button>
         )}
       </div>
@@ -136,8 +110,9 @@ const VariantSelectorRow = ({
         <div className="flex flex-wrap gap-2">
           {colors.map(c => (
             <button key={c}
-              onClick={() => onChange(index, { ...sel, color: c, size: '' })}
-              className={`px-4 py-1.5 rounded-lg text-sm font-semibold border-2 transition-all ${sel.color === c ? 'border-primary bg-primary text-primary-foreground shadow-md scale-105' : 'border-primary/30 bg-primary/5 text-primary hover:bg-primary/10'}`}
+              onClick={() => !locked && onChange(index, { ...sel, color: c, size: '' })}
+              disabled={locked}
+              className={`px-4 py-1.5 rounded-lg text-sm font-semibold border-2 transition-all ${sel.color === c ? 'border-primary bg-primary text-primary-foreground shadow-md scale-105' : 'border-primary/30 bg-primary/5 text-primary hover:bg-primary/10'} ${locked ? 'opacity-80 cursor-default' : ''}`}
             >{c}</button>
           ))}
         </div>
@@ -149,8 +124,9 @@ const VariantSelectorRow = ({
           <div className="flex flex-wrap gap-2">
             {sizes.map(s => (
               <button key={s}
-                onClick={() => onChange(index, { ...sel, size: s })}
-                className={`px-4 py-1.5 rounded-lg text-sm font-semibold border-2 transition-all ${sel.size === s ? 'border-primary bg-primary text-primary-foreground shadow-md scale-105' : 'border-primary/30 bg-primary/5 text-primary hover:bg-primary/10'}`}
+                onClick={() => !locked && onChange(index, { ...sel, size: s })}
+                disabled={locked}
+                className={`px-4 py-1.5 rounded-lg text-sm font-semibold border-2 transition-all ${sel.size === s ? 'border-primary bg-primary text-primary-foreground shadow-md scale-105' : 'border-primary/30 bg-primary/5 text-primary hover:bg-primary/10'} ${locked ? 'opacity-80 cursor-default' : ''}`}
               >{s}</button>
             ))}
           </div>
@@ -160,13 +136,13 @@ const VariantSelectorRow = ({
       <div className="flex items-center gap-3">
         <span className="text-xs font-bold text-foreground">الكمية</span>
         <div className="flex items-center gap-3 bg-primary/10 rounded-xl px-3 py-1.5 border border-primary/20">
-          <button onClick={() => onChange(index, { ...sel, quantity: Math.max(1, sel.quantity - 1) })} className="text-primary">
-            <Minus size={14} />
-          </button>
+          {!locked && (
+            <button onClick={() => onChange(index, { ...sel, quantity: Math.max(1, sel.quantity - 1) })} className="text-primary"><Minus size={14} /></button>
+          )}
           <span className="text-base font-bold text-primary w-6 text-center">{sel.quantity}</span>
-          <button onClick={() => onChange(index, { ...sel, quantity: sel.quantity + 1 })} className="text-primary">
-            <Plus size={14} />
-          </button>
+          {!locked && (
+            <button onClick={() => onChange(index, { ...sel, quantity: sel.quantity + 1 })} className="text-primary"><Plus size={14} /></button>
+          )}
         </div>
       </div>
     </div>
@@ -186,9 +162,7 @@ const OrderSuccess = ({ orderNumber, onBack }: { orderNumber: number; onBack: ()
       <p className="text-sm text-muted-foreground mb-1">رقم الطلب</p>
       <p className="text-3xl font-bold text-primary">#{orderNumber}</p>
     </div>
-    <Button onClick={onBack} className="gradient-primary text-primary-foreground rounded-xl w-full max-w-sm h-12">
-      العودة للمتجر
-    </Button>
+    <Button onClick={onBack} className="gradient-primary text-primary-foreground rounded-xl w-full max-w-sm h-12">العودة للمتجر</Button>
   </motion.div>
 );
 
@@ -196,10 +170,21 @@ const OrderSuccess = ({ orderNumber, onBack }: { orderNumber: number; onBack: ()
 const ProductPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { data: product, isLoading } = useProduct(id!);
   const { addItem } = useCart();
   const { data: governorates } = useGovernorates();
   const { data: relatedProducts } = useRelatedProducts(product?.category_id ?? null, id!);
+
+  // Check if there's a locked share param
+  const sharedData = useMemo(() => {
+    const s = searchParams.get('share');
+    if (!s) return null;
+    try { return JSON.parse(atob(s)) as VariantSelection[]; }
+    catch { return null; }
+  }, [searchParams]);
+
+  const isLocked = !!sharedData;
 
   // Direct buy form state
   const [buyName, setBuyName] = useState('');
@@ -210,37 +195,40 @@ const ProductPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderNumber, setOrderNumber] = useState<number | null>(null);
 
-  // Variant selections (array for multi-piece picking)
+  // Variant selections
   const [variants, setVariants] = useState<VariantSelection[]>([{ color: '', size: '', quantity: 1 }]);
+
+  // Initialize from shared data
+  useEffect(() => {
+    if (sharedData && sharedData.length > 0) {
+      setVariants(sharedData);
+    }
+  }, [sharedData]);
+
+  // Track page visit
+  useEffect(() => {
+    if (id) trackEvent('page_visit', id);
+  }, [id]);
 
   if (isLoading) {
     return (
       <div className="min-h-screen pb-20" dir="rtl">
         <Skeleton className="w-full aspect-square" />
-        <div className="p-4 space-y-3">
-          <Skeleton className="h-6 w-3/4" />
-          <Skeleton className="h-8 w-1/3" />
-          <Skeleton className="h-20 w-full" />
-        </div>
+        <div className="p-4 space-y-3"><Skeleton className="h-6 w-3/4" /><Skeleton className="h-8 w-1/3" /><Skeleton className="h-20 w-full" /></div>
       </div>
     );
   }
 
   if (!product) return <div className="min-h-screen flex items-center justify-center">المنتج غير موجود</div>;
-
-  if (orderNumber) {
-    return <OrderSuccess orderNumber={orderNumber} onBack={() => navigate('/')} />;
-  }
+  if (orderNumber) return <OrderSuccess orderNumber={orderNumber} onBack={() => navigate('/')} />;
 
   // ── Computed values ──
   const images = product.product_images?.sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)) || [];
   const allImages = images.length > 0 ? images.map(i => i.image_url) : [product.image_url || '/placeholder.svg'];
-
   const displayPrice = product.is_offer && product.offer_price ? product.offer_price : (product.discount_price || product.price);
   const hasDiscount = displayPrice < product.price;
   const discountPercent = hasDiscount ? Math.round(((product.price - displayPrice) / product.price) * 100) : 0;
 
-  // All unique colors from color_variants or color_options
   const colorVariants = product.product_color_variants || [];
   const colors: string[] = colorVariants.length > 0
     ? [...new Set(colorVariants.map(v => v.color))]
@@ -252,43 +240,36 @@ const ProductPage = () => {
     return variant?.sizes || product.size_options || [];
   };
 
-  // Quantity pricing tiers
   const rawTiers = product.quantity_pricing;
   const tiers: QuantityPricingTier[] = Array.isArray(rawTiers) ? (rawTiers as unknown as QuantityPricingTier[]) : [];
-
-  // Total quantity across all variant rows
   const totalQty = variants.reduce((s, v) => s + v.quantity, 0);
-
-  // Effective price per piece based on total qty
   const effectiveUnitPrice = getEffectivePrice(displayPrice, tiers, totalQty);
   const totalProductPrice = effectiveUnitPrice * totalQty;
-
-  // Selected gov shipping
   const selectedGov = governorates?.find(g => g.id === buyGovId);
   const shippingCost = selectedGov?.shipping_cost || 0;
   const grandTotal = totalProductPrice + shippingCost;
 
   // ── Variant helpers ──
   const handleVariantChange = (index: number, updated: VariantSelection) => {
+    if (isLocked) return;
     setVariants(prev => prev.map((v, i) => i === index ? updated : v));
   };
   const handleVariantRemove = (index: number) => {
+    if (isLocked) return;
     setVariants(prev => prev.filter((_, i) => i !== index));
   };
   const handleAddVariantRow = () => {
+    if (isLocked) return;
     const newTotal = totalQty + 1;
     if (newTotal > MAX_QTY) {
-      toast.error(`الحد الأقصى ${MAX_QTY} قطعة. يرجى فتح طلب جديد برقم الطلب الذي ستحصل عليه`);
+      toast.error(`الحد الأقصى ${MAX_QTY} قطعة. يرجى فتح طلب جديد`);
       return;
     }
     setVariants(prev => [...prev, { color: '', size: '', quantity: 1 }]);
   };
 
-  // Validate: all rows must have color & size selected
-  const allVariantsValid = variants.every(v => v.color && v.size);
   const hasColors = colors.length > 0;
   const hasSizes = getSizesForColor(variants[0]?.color || '').length > 0 || (product.size_options || []).length > 0;
-  // If product has no colors/sizes, skip validation for those
   const isSelectionValid = (
     (!hasColors || variants.every(v => v.color)) &&
     (!hasSizes || variants.every(v => v.size))
@@ -296,88 +277,63 @@ const ProductPage = () => {
 
   // ── Add to Cart ──
   const handleAddToCart = () => {
-    if (!isSelectionValid) {
-      toast.error('يرجى اختيار اللون والمقاس أولاً');
-      return;
-    }
+    if (!isSelectionValid) { toast.error('يرجى اختيار اللون والمقاس أولاً'); return; }
     variants.forEach(v => {
       addItem({
-        productId: product.id,
-        name: product.name,
-        price: effectiveUnitPrice,
+        productId: product.id, name: product.name, price: effectiveUnitPrice,
         originalPrice: hasDiscount ? product.price : undefined,
-        image: allImages[0],
-        color: v.color || undefined,
-        size: v.size || undefined,
-        quantity: v.quantity,
+        image: allImages[0], color: v.color || undefined, size: v.size || undefined, quantity: v.quantity,
       });
     });
     toast.success(`تمت الإضافة للسلة ✓`);
+    trackEvent('add_to_cart', product.id, { qty: totalQty });
     navigator.vibrate?.(50);
   };
 
-  // ── Share ──
+  // ── Share product ──
   const handleShare = async () => {
     const url = window.location.href;
     try { await navigator.share({ title: product.name, url }); }
     catch { await navigator.clipboard.writeText(url); toast.success('تم نسخ الرابط'); }
   };
 
-  // ── Direct Buy (Submit Order) ──
+  // ── Share specific pieces (locked link) ──
+  const handleSharePieces = async () => {
+    if (!isSelectionValid) { toast.error('يرجى اختيار اللون والمقاس لكل قطعة أولاً'); return; }
+    const encoded = btoa(JSON.stringify(variants));
+    const url = `${window.location.origin}/product/${id}?share=${encoded}`;
+    try { await navigator.share({ title: `${product.name} - ${totalQty} قطع`, url }); }
+    catch { await navigator.clipboard.writeText(url); toast.success('تم نسخ رابط المشاركة'); }
+  };
+
+  // ── Direct Buy ──
   const handleDirectBuy = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isSelectionValid) {
-      toast.error('يرجى اختيار اللون والمقاس لكل قطعة');
-      return;
-    }
-    if (!buyName || !buyPhone || !buyAddress || !buyGovId) {
-      toast.error('يرجى ملء جميع الحقول المطلوبة');
-      return;
-    }
+    if (!isSelectionValid) { toast.error('يرجى اختيار اللون والمقاس لكل قطعة'); return; }
+    if (!buyName || !buyPhone || !buyAddress || !buyGovId) { toast.error('يرجى ملء جميع الحقول المطلوبة'); return; }
     setIsSubmitting(true);
+    trackEvent('checkout_start', product.id, { qty: totalQty });
     try {
-      // 1. Create customer
       const { data: customer, error: custErr } = await supabase
-        .from('customers')
-        .insert({ name: buyName, phone: buyPhone, address: buyAddress, governorate: selectedGov?.name || '' })
-        .select().single();
+        .from('customers').insert({ name: buyName, phone: buyPhone, address: buyAddress, governorate: selectedGov?.name || '' }).select().single();
       if (custErr) throw custErr;
-
-      // 2. Create order — total_amount = products only (shipping stored separately)
       const { data: order, error: orderErr } = await supabase
-        .from('orders')
-        .insert({
-          customer_id: customer.id,
-          total_amount: totalProductPrice,   // products only — shipping in shipping_cost field
-          shipping_cost: shippingCost,
-          governorate_id: buyGovId,
-          notes: buyNotes || null,
-          status: 'pending',
-        })
-        .select().single();
+        .from('orders').insert({ customer_id: customer.id, total_amount: totalProductPrice, shipping_cost: shippingCost, governorate_id: buyGovId, notes: buyNotes || null, status: 'pending' }).select().single();
       if (orderErr) throw orderErr;
-
-      // 3. Create order items (one per variant row)
       const orderItems = variants.map(v => ({
-        order_id: order.id,
-        product_id: product.id,
-        quantity: v.quantity,
-        price: effectiveUnitPrice,
-        color: v.color || null,
-        size: v.size || null,
+        order_id: order.id, product_id: product.id, quantity: v.quantity, price: effectiveUnitPrice,
+        color: v.color || null, size: v.size || null,
         product_details: `${product.name}${v.color ? ` - ${v.color}` : ''}${v.size ? ` - ${v.size}` : ''}`,
       }));
       const { error: itemsErr } = await supabase.from('order_items').insert(orderItems);
       if (itemsErr) throw itemsErr;
-
+      trackEvent('order_complete', product.id, { qty: totalQty, order_id: order.id });
       setOrderNumber(order.order_number || 0);
       navigator.vibrate?.([100, 50, 100]);
     } catch (err) {
       console.error(err);
       toast.error('حدث خطأ أثناء إرسال الطلب');
-    } finally {
-      setIsSubmitting(false);
-    }
+    } finally { setIsSubmitting(false); }
   };
 
   return (
@@ -390,18 +346,22 @@ const ProductPage = () => {
         </div>
       </div>
 
-      {/* Image Gallery — swipeable */}
-      <div className="mt-12">
-        <ImageGallery images={allImages} productName={product.name} />
-      </div>
+      {/* Image Gallery */}
+      <div className="mt-12"><ImageGallery images={allImages} productName={product.name} /></div>
+
+      {/* Locked share banner */}
+      {isLocked && (
+        <div className="mx-4 mt-3 bg-primary/15 border-2 border-primary/40 rounded-xl p-3 flex items-center gap-2">
+          <Link2 size={18} className="text-primary shrink-0" />
+          <p className="text-sm font-semibold text-primary">تم تحديد القطع مسبقاً — أكمل بياناتك للطلب</p>
+        </div>
+      )}
 
       {/* Product Info */}
       <div className="px-4 py-4 space-y-4">
-
-        {/* Name + Rating */}
         <div className="flex items-start justify-between gap-2">
           <h1 className="text-xl font-bold leading-tight flex-1">{product.name}</h1>
-        {product.rating != null && product.rating > 0 && (
+          {product.rating != null && product.rating > 0 && (
             <div className="flex items-center gap-1 shrink-0 bg-accent px-2 py-1 rounded-lg">
               <Star size={14} className="fill-primary text-primary" />
               <span className="text-sm font-semibold">{product.rating}</span>
@@ -423,12 +383,10 @@ const ProductPage = () => {
           )}
         </div>
 
-        {/* Stock Warning */}
         {product.stock != null && product.stock > 0 && product.stock <= (product.low_stock_threshold || 5) && (
           <p className="text-sm text-destructive font-semibold">⚠️ باقي {product.stock} قطع فقط!</p>
         )}
 
-        {/* Description */}
         {product.description && (
           <p className="text-sm text-muted-foreground leading-relaxed">{product.description}</p>
         )}
@@ -457,38 +415,35 @@ const ProductPage = () => {
         <div className="bg-primary/10 rounded-2xl p-4 space-y-3 border-2 border-primary/30 shadow-lg">
           <h3 className="font-bold text-lg text-primary">🎨 اختر اللون والمقاس والكمية</h3>
           {variants.map((sel, i) => (
-            <VariantSelectorRow
-              key={i}
-              index={i}
-              sel={sel}
-              colors={colors}
-              getSizesForColor={getSizesForColor}
-              onChange={handleVariantChange}
-              onRemove={handleVariantRemove}
-            />
+            <VariantSelectorRow key={i} index={i} sel={sel} colors={colors}
+              getSizesForColor={getSizesForColor} onChange={handleVariantChange}
+              onRemove={handleVariantRemove} locked={isLocked} />
           ))}
-          {totalQty < MAX_QTY && (
-            <button
-              onClick={handleAddVariantRow}
-              className="w-full border border-dashed border-primary text-primary text-sm rounded-xl py-2 hover:bg-primary/5 transition-colors"
-            >
+          {!isLocked && totalQty < MAX_QTY && (
+            <button onClick={handleAddVariantRow}
+              className="w-full border border-dashed border-primary text-primary text-sm rounded-xl py-2 hover:bg-primary/5 transition-colors">
               + إضافة مقاس/لون مختلف
             </button>
           )}
-          {totalQty >= MAX_QTY && (
+          {totalQty >= MAX_QTY && !isLocked && (
             <p className="text-xs text-center text-muted-foreground bg-muted rounded-lg p-2">
               وصلت للحد الأقصى ({MAX_QTY} قطعة). لطلب كميات أكبر يرجى فتح طلب جديد.
             </p>
           )}
         </div>
 
-        {/* ─────────────────────────────────────────────────────
-            DIRECT BUY FORM (inline on product page)
-        ───────────────────────────────────────────────────── */}
+        {/* ── Share Pieces Button ── */}
+        {!isLocked && (
+          <Button onClick={handleSharePieces} variant="outline"
+            className="w-full h-11 font-bold text-sm gap-2 rounded-xl border-primary text-primary">
+            <Link2 size={16} /> مشاركة القطع المحددة كرابط
+          </Button>
+        )}
+
+        {/* ── Direct Buy Form ── */}
         <div className="bg-primary/10 rounded-2xl p-5 space-y-4 shadow-lg border-2 border-primary/30">
           <h3 className="font-bold text-xl text-primary">🛒 اطلب الآن</h3>
           <p className="text-sm text-muted-foreground">أكمل بياناتك لإتمام الطلب مباشرة بدون سلة</p>
-
           <form onSubmit={handleDirectBuy} className="space-y-3">
             <div>
               <label className="text-xs font-semibold mb-1 block">الاسم *</label>
@@ -500,12 +455,8 @@ const ProductPage = () => {
             </div>
             <div>
               <label className="text-xs font-semibold mb-1 block">المحافظة *</label>
-              <select
-                value={buyGovId}
-                onChange={e => setBuyGovId(e.target.value)}
-                className="w-full h-11 rounded-xl border border-input bg-background px-3 text-sm"
-                required
-              >
+              <select value={buyGovId} onChange={e => setBuyGovId(e.target.value)}
+                className="w-full h-11 rounded-xl border border-input bg-background px-3 text-sm" required>
                 <option value="">اختر المحافظة</option>
                 {governorates?.map(g => (
                   <option key={g.id} value={g.id}>{g.name} – شحن {g.shipping_cost} ج.م</option>
@@ -520,30 +471,15 @@ const ProductPage = () => {
               <label className="text-xs font-semibold mb-1 block">ملاحظات (اختياري)</label>
               <Input value={buyNotes} onChange={e => setBuyNotes(e.target.value)} placeholder="أي ملاحظات للمندوب" className="rounded-xl h-11" />
             </div>
-
-            {/* Order Summary */}
             {buyGovId && (
               <div className="bg-muted rounded-xl p-3 text-sm space-y-1">
-                <div className="flex justify-between">
-                  <span>المنتجات ({totalQty} قطعة)</span>
-                  <span className="font-semibold">{totalProductPrice} ج.م</span>
-                </div>
-                <div className="flex justify-between text-muted-foreground">
-                  <span>الشحن</span>
-                  <span>{shippingCost} ج.م</span>
-                </div>
-                <div className="flex justify-between font-bold text-primary border-t border-border pt-1 mt-1">
-                  <span>الإجمالي</span>
-                  <span>{grandTotal} ج.م</span>
-                </div>
+                <div className="flex justify-between"><span>المنتجات ({totalQty} قطعة)</span><span className="font-semibold">{totalProductPrice} ج.م</span></div>
+                <div className="flex justify-between text-muted-foreground"><span>الشحن</span><span>{shippingCost} ج.م</span></div>
+                <div className="flex justify-between font-bold text-primary border-t border-border pt-1 mt-1"><span>الإجمالي</span><span>{grandTotal} ج.م</span></div>
               </div>
             )}
-
-            <Button
-              type="submit"
-              disabled={isSubmitting || !isSelectionValid}
-              className="w-full h-12 gradient-primary text-primary-foreground font-bold text-base rounded-xl"
-            >
+            <Button type="submit" disabled={isSubmitting || !isSelectionValid}
+              className="w-full h-12 gradient-primary text-primary-foreground font-bold text-base rounded-xl">
               {isSubmitting ? <Loader2 className="animate-spin" /> : `إتمام الطلب — ${grandTotal} ج.م`}
             </Button>
             {!isSelectionValid && (
@@ -552,16 +488,13 @@ const ProductPage = () => {
           </form>
         </div>
 
-        {/* ─────────────────────────────────────────────────────
-            ADD TO CART — below direct buy
-        ───────────────────────────────────────────────────── */}
-        <Button
-          onClick={handleAddToCart}
-          variant="outline"
-          className="w-full h-12 font-bold text-base gap-2 rounded-xl border-primary text-primary"
-        >
-          <ShoppingCart size={18} /> إضافة للسلة
-        </Button>
+        {/* Add to Cart */}
+        {!isLocked && (
+          <Button onClick={handleAddToCart} variant="outline"
+            className="w-full h-12 font-bold text-base gap-2 rounded-xl border-primary text-primary">
+            <ShoppingCart size={18} /> إضافة للسلة
+          </Button>
+        )}
 
         {/* Related Products */}
         {relatedProducts && relatedProducts.length > 0 && (
