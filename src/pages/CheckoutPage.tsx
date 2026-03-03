@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { motion } from 'framer-motion';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { trackEvent } from '@/lib/analytics';
 
 const CheckoutPage = () => {
   const { items, totalPrice, clearCart } = useCart();
@@ -58,6 +59,7 @@ const CheckoutPage = () => {
       return;
     }
     setIsSubmitting(true);
+    trackEvent('checkout_start');
     try {
       // Create customer
       const { data: customer, error: custError } = await supabase

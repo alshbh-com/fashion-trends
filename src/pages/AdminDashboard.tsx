@@ -3,17 +3,19 @@ import { Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useBanners } from '@/hooks/useBanners';
 import { useAppSettings } from '@/hooks/useAppSettings';
+import { useAnalytics7Days } from '@/hooks/useAnalytics';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useState, useEffect } from 'react';
-import { LogOut, Image, Palette, Loader2, Sun, Moon } from 'lucide-react';
+import { LogOut, Image, Palette, Loader2, Sun, Moon, BarChart3, Eye, ShoppingCart, CreditCard, Package } from 'lucide-react';
 import { toast } from 'sonner';
 
 const AdminDashboard = () => {
   const { isAuthenticated, isLoading, logout } = useAdminAuth();
   const { data: banners, refetch: refetchBanners } = useBanners();
   const { data: settings, refetch: refetchSettings } = useAppSettings();
+  const { data: analytics } = useAnalytics7Days();
   const [bannerUrl, setBannerUrl] = useState('');
   const [bannerTitle, setBannerTitle] = useState('');
   const [themeHue, setThemeHue] = useState('340');
@@ -59,6 +61,13 @@ const AdminDashboard = () => {
     refetchSettings();
   };
 
+  const statsCards = [
+    { label: 'الزائرين', value: analytics?.visitors || 0, icon: Eye, color: 'bg-blue-500/15 text-blue-600' },
+    { label: 'إضافة للسلة', value: analytics?.addToCart || 0, icon: ShoppingCart, color: 'bg-orange-500/15 text-orange-600' },
+    { label: 'بدء الشراء', value: analytics?.checkoutStarts || 0, icon: CreditCard, color: 'bg-purple-500/15 text-purple-600' },
+    { label: 'طلبات مكتملة', value: analytics?.ordersComplete || 0, icon: Package, color: 'bg-green-500/15 text-green-600' },
+  ];
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen pb-20" dir="rtl">
       <header className="sticky top-0 z-30 glass border-b border-border safe-top">
@@ -69,6 +78,24 @@ const AdminDashboard = () => {
       </header>
 
       <div className="px-4 py-6 space-y-6">
+
+        {/* ── Analytics 7 Days ── */}
+        <div className="bg-card border border-border rounded-xl p-4 space-y-4">
+          <div className="flex items-center gap-2 mb-2">
+            <BarChart3 size={20} className="text-primary" />
+            <h2 className="font-bold">إحصائيات آخر 7 أيام</h2>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {statsCards.map((s, i) => (
+              <div key={i} className={`rounded-xl p-4 flex flex-col items-center gap-2 ${s.color}`}>
+                <s.icon size={24} />
+                <span className="text-2xl font-bold">{s.value}</span>
+                <span className="text-xs font-semibold">{s.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         {/* Banner Management */}
         <div className="bg-card border border-border rounded-xl p-4 space-y-4">
           <div className="flex items-center gap-2 mb-2">
@@ -80,7 +107,6 @@ const AdminDashboard = () => {
           <Button onClick={handleAddBanner} disabled={saving} className="w-full gradient-primary text-primary-foreground rounded-xl">
             {saving ? <Loader2 className="animate-spin" /> : 'إضافة بانر'}
           </Button>
-
           {banners?.map(banner => (
             <div key={banner.id} className="flex items-center gap-3 bg-muted rounded-lg p-2">
               <img src={banner.image_url} alt={banner.title} className="w-16 h-10 rounded object-cover" />
@@ -96,26 +122,19 @@ const AdminDashboard = () => {
             <Palette size={20} className="text-primary" />
             <h2 className="font-bold">ألوان الثيم</h2>
           </div>
-
-          {/* Light / Dark Toggle */}
           <div>
             <label className="text-sm text-muted-foreground block mb-2">وضع الألوان</label>
             <div className="flex gap-2">
-              <button
-                onClick={() => setThemeMode('light')}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 transition-all ${themeMode === 'light' ? 'border-primary bg-primary/10 font-bold' : 'border-border'}`}
-              >
+              <button onClick={() => setThemeMode('light')}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 transition-all ${themeMode === 'light' ? 'border-primary bg-primary/10 font-bold' : 'border-border'}`}>
                 <Sun size={18} /> فاتح
               </button>
-              <button
-                onClick={() => setThemeMode('dark')}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 transition-all ${themeMode === 'dark' ? 'border-primary bg-primary/10 font-bold' : 'border-border'}`}
-              >
+              <button onClick={() => setThemeMode('dark')}
+                className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border-2 transition-all ${themeMode === 'dark' ? 'border-primary bg-primary/10 font-bold' : 'border-border'}`}>
                 <Moon size={18} /> داكن
               </button>
             </div>
           </div>
-
           <div>
             <label className="text-sm text-muted-foreground block mb-1">Hue (0-360)</label>
             <Input type="range" min="0" max="360" value={themeHue} onChange={e => setThemeHue(e.target.value)} />
