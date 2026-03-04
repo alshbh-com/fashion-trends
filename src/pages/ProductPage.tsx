@@ -300,10 +300,23 @@ const ProductPage = () => {
   // ── Share specific pieces (locked link) ──
   const handleSharePieces = async () => {
     if (!isSelectionValid) { toast.error('يرجى اختيار اللون والمقاس لكل قطعة أولاً'); return; }
-    const encoded = btoa(JSON.stringify(variants));
+    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(variants))));
     const url = `${window.location.origin}/product/${id}?share=${encoded}`;
-    try { await navigator.share({ title: `${product.name} - ${totalQty} قطع`, url }); }
-    catch { await navigator.clipboard.writeText(url); toast.success('تم نسخ رابط المشاركة'); }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success('تم نسخ رابط المشاركة بنجاح ✅');
+    } catch {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = url;
+      textArea.style.position = 'fixed';
+      textArea.style.opacity = '0';
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      toast.success('تم نسخ رابط المشاركة بنجاح ✅');
+    }
   };
 
   // ── Direct Buy ──
