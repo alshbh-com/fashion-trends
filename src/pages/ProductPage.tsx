@@ -4,7 +4,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useGovernorates } from '@/hooks/useGovernorates';
 import { supabase } from '@/integrations/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Share2, ShoppingCart, Star, Minus, Plus, ChevronLeft, ChevronRight, CheckCircle2, Loader2, Link2, Trash2 } from 'lucide-react';
+import { ArrowRight, Share2, ShoppingCart, Star, Minus, Plus, ChevronLeft, ChevronRight, CheckCircle2, Loader2, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -16,16 +16,8 @@ import { trackEvent } from '@/lib/analytics';
 import { fbTrack } from '@/lib/fbpixel';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-interface QuantityPricingTier {
-  quantity: number;
-  price: number;
-}
-
-interface VariantSelection {
-  color: string;
-  size: string;
-  quantity: number;
-}
+interface QuantityPricingTier { quantity: number; price: number; }
+interface VariantSelection { color: string; size: string; quantity: number; }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const getEffectivePrice = (basePrice: number, tiers: QuantityPricingTier[], total: number): number => {
@@ -34,7 +26,7 @@ const getEffectivePrice = (basePrice: number, tiers: QuantityPricingTier[], tota
   const matched = sorted.find(t => total >= t.quantity);
   return matched ? matched.price : basePrice;
 };
-
+const comboKey = (color: string, size: string) => `${color}||${size}`;
 const MAX_QTY = 12;
 
 // ─── Swipeable Image Gallery ──────────────────────────────────────────────────
@@ -42,20 +34,12 @@ const ImageGallery = ({ images, productName }: { images: string[]; productName: 
   const [current, setCurrent] = useState(0);
   const dragStartX = useRef<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
-
   const goNext = useCallback(() => setCurrent(c => (c + 1) % images.length), [images.length]);
   const goPrev = useCallback(() => setCurrent(c => (c - 1 + images.length) % images.length), [images.length]);
-
   const handleTouchStart = (e: React.TouchEvent) => { dragStartX.current = e.touches[0].clientX; };
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    const diff = dragStartX.current - e.changedTouches[0].clientX;
-    if (Math.abs(diff) > 50) diff > 0 ? goNext() : goPrev();
-  };
+  const handleTouchEnd = (e: React.TouchEvent) => { const d = dragStartX.current - e.changedTouches[0].clientX; if (Math.abs(d) > 50) d > 0 ? goNext() : goPrev(); };
   const handleMouseDown = (e: React.MouseEvent) => { dragStartX.current = e.clientX; };
-  const handleMouseUp = (e: React.MouseEvent) => {
-    const diff = dragStartX.current - e.clientX;
-    if (Math.abs(diff) > 50) diff > 0 ? goNext() : goPrev();
-  };
+  const handleMouseUp = (e: React.MouseEvent) => { const d = dragStartX.current - e.clientX; if (Math.abs(d) > 50) d > 0 ? goNext() : goPrev(); };
 
   return (
     <div ref={containerRef} className="relative w-full aspect-square overflow-hidden bg-muted select-none"
@@ -84,7 +68,7 @@ const ImageGallery = ({ images, productName }: { images: string[]; productName: 
   );
 };
 
-// ─── Order Success Screen ─────────────────────────────────────────────────────
+// ─── Order Success ────────────────────────────────────────────────────────────
 const OrderSuccess = ({ orderNumber, onBack }: { orderNumber: number; onBack: () => void }) => (
   <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
     className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background px-6" dir="rtl">
@@ -111,17 +95,14 @@ const ProductPage = () => {
   const { data: governorates } = useGovernorates();
   const { data: relatedProducts } = useRelatedProducts(product?.category_id ?? null, id!);
 
-  // Check if there's a locked share param
   const sharedData = useMemo(() => {
     const s = searchParams.get('share');
     if (!s) return null;
     try { return JSON.parse(decodeURIComponent(escape(atob(s)))) as VariantSelection[]; }
     catch { return null; }
   }, [searchParams]);
-
   const isLocked = !!sharedData;
 
-  // Direct buy form state
   const [buyName, setBuyName] = useState('');
   const [buyPhone, setBuyPhone] = useState('');
   const [buyAddress, setBuyAddress] = useState('');
@@ -130,31 +111,28 @@ const ProductPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderNumber, setOrderNumber] = useState<number | null>(null);
 
-  // Variant selections — simplified: list of {color, size, quantity}
-  const [variants, setVariants] = useState<VariantSelection[]>([{ color: '', size: '', quantity: 1 }]);
+  // Combos: key = "color||size", value = quantity
+  const [combos, setCombos] = useState<Record<string, number>>({});
+  // For products without colors/sizes, just a simple quantity
+  const [simpleQty, setSimpleQty] = useState(1);
 
   // Initialize from shared data
   useEffect(() => {
     if (sharedData && sharedData.length > 0) {
-      setVariants(sharedData);
+      const map: Record<string, number> = {};
+      let simple = 0;
+      sharedData.forEach(v => {
+        if (!v.color && !v.size) { simple += v.quantity; }
+        else { map[comboKey(v.color, v.size)] = (map[comboKey(v.color, v.size)] || 0) + v.quantity; }
+      });
+      setCombos(map);
+      if (simple > 0) setSimpleQty(simple);
     }
   }, [sharedData]);
 
-  // Track page visit + FB pixel
+  useEffect(() => { if (id) trackEvent('page_visit', id); }, [id]);
   useEffect(() => {
-    if (id) trackEvent('page_visit', id);
-  }, [id]);
-
-  useEffect(() => {
-    if (product) {
-      fbTrack('ViewContent', {
-        content_name: product.name,
-        content_ids: [product.id],
-        content_type: 'product',
-        value: product.price,
-        currency: 'EGP',
-      });
-    }
+    if (product) fbTrack('ViewContent', { content_name: product.name, content_ids: [product.id], content_type: 'product', value: product.price, currency: 'EGP' });
   }, [product]);
 
   if (isLoading) {
@@ -169,9 +147,9 @@ const ProductPage = () => {
   if (!product) return <div className="min-h-screen flex items-center justify-center">المنتج غير موجود</div>;
   if (orderNumber) return <OrderSuccess orderNumber={orderNumber} onBack={() => navigate('/')} />;
 
-  // ── Computed values ──
-  const images = product.product_images?.sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)) || [];
-  const allImages = images.length > 0 ? images.map(i => i.image_url) : [product.image_url || '/placeholder.svg'];
+  // ── Computed ──
+  const imgList = product.product_images?.sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0)) || [];
+  const allImages = imgList.length > 0 ? imgList.map(i => i.image_url) : [product.image_url || '/placeholder.svg'];
   const displayPrice = product.is_offer && product.offer_price ? product.offer_price : (product.discount_price || product.price);
   const hasDiscount = displayPrice < product.price;
   const discountPercent = hasDiscount ? Math.round(((product.price - displayPrice) / product.price) * 100) : 0;
@@ -187,8 +165,24 @@ const ProductPage = () => {
     return variant?.sizes || product.size_options || [];
   };
 
+  const hasColors = colors.length > 0;
+  const globalSizes = product.size_options || [];
+  const hasSizes = hasColors
+    ? colors.some(c => getSizesForColor(c).length > 0)
+    : globalSizes.length > 0;
+  const needsVariants = hasColors || hasSizes;
+
   const rawTiers = product.quantity_pricing;
   const tiers: QuantityPricingTier[] = Array.isArray(rawTiers) ? (rawTiers as unknown as QuantityPricingTier[]) : [];
+
+  // Build variants array from combos
+  const variants: VariantSelection[] = needsVariants
+    ? Object.entries(combos).filter(([, q]) => q > 0).map(([key, qty]) => {
+        const [color, size] = key.split('||');
+        return { color, size, quantity: qty };
+      })
+    : [{ color: '', size: '', quantity: simpleQty }];
+
   const totalQty = variants.reduce((s, v) => s + v.quantity, 0);
   const effectiveUnitPrice = getEffectivePrice(displayPrice, tiers, totalQty);
   const totalProductPrice = effectiveUnitPrice * totalQty;
@@ -196,61 +190,61 @@ const ProductPage = () => {
   const shippingCost = selectedGov?.shipping_cost || 0;
   const grandTotal = totalProductPrice + shippingCost;
 
-  const hasColors = colors.length > 0;
-  const hasSizes = getSizesForColor(variants[0]?.color || '').length > 0 || (product.size_options || []).length > 0;
-  const isSelectionValid = (
-    (!hasColors || variants.every(v => v.color)) &&
-    (!hasSizes || variants.every(v => v.size))
-  );
+  const isSelectionValid = needsVariants
+    ? totalQty > 0 && variants.every(v => (!hasColors || v.color) && (!hasSizes || v.size))
+    : simpleQty > 0;
 
-  // ── Variant helpers (simplified) ──
-  const handleVariantQtyChange = (index: number, delta: number) => {
+  // ── Toggle a color+size combo ──
+  const toggleCombo = (color: string, size: string) => {
     if (isLocked) return;
-    setVariants(prev => {
-      const updated = [...prev];
-      const newQty = updated[index].quantity + delta;
-      if (newQty <= 0) {
-        // Remove this variant if qty goes to 0 and there's more than one
-        if (updated.length > 1) {
-          return updated.filter((_, i) => i !== index);
-        }
-        return updated; // Keep at least one
+    const key = comboKey(color, size);
+    setCombos(prev => {
+      if (prev[key]) {
+        // Remove it
+        const next = { ...prev };
+        delete next[key];
+        return next;
       }
-      const newTotal = totalQty + delta;
-      if (newTotal > MAX_QTY) {
+      // Check max
+      const currentTotal = Object.values(prev).reduce((s, q) => s + q, 0);
+      if (currentTotal >= MAX_QTY) {
         toast.error(`الحد الأقصى ${MAX_QTY} قطعة لكل طلب`);
-        return updated;
+        return prev;
       }
-      updated[index] = { ...updated[index], quantity: newQty };
-      return updated;
+      return { ...prev, [key]: 1 };
     });
   };
 
-  const handleVariantColorChange = (index: number, color: string) => {
+  const changeComboQty = (key: string, delta: number) => {
     if (isLocked) return;
-    setVariants(prev => prev.map((v, i) => i === index ? { ...v, color, size: '' } : v));
+    setCombos(prev => {
+      const current = prev[key] || 0;
+      const newQty = current + delta;
+      if (newQty <= 0) {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      }
+      const currentTotal = Object.values(prev).reduce((s, q) => s + q, 0);
+      if (delta > 0 && currentTotal >= MAX_QTY) {
+        toast.error(`الحد الأقصى ${MAX_QTY} قطعة لكل طلب`);
+        return prev;
+      }
+      return { ...prev, [key]: newQty };
+    });
   };
 
-  const handleVariantSizeChange = (index: number, size: string) => {
+  const changeSimpleQty = (delta: number) => {
     if (isLocked) return;
-    setVariants(prev => prev.map((v, i) => i === index ? { ...v, size } : v));
+    setSimpleQty(prev => {
+      const n = prev + delta;
+      if (n < 1) return 1;
+      if (n > MAX_QTY) { toast.error(`الحد الأقصى ${MAX_QTY} قطعة`); return prev; }
+      return n;
+    });
   };
 
-  const handleRemoveVariant = (index: number) => {
-    if (isLocked || variants.length <= 1) return;
-    setVariants(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleAddVariant = () => {
-    if (isLocked) return;
-    if (totalQty >= MAX_QTY) {
-      toast.error(`الحد الأقصى ${MAX_QTY} قطعة. يرجى فتح طلب جديد`);
-      return;
-    }
-    setVariants(prev => [...prev, { color: '', size: '', quantity: 1 }]);
-  };
-
-  // ── Add to Cart ──
+  // ── Actions ──
   const handleAddToCart = () => {
     if (!isSelectionValid) { toast.error('يرجى اختيار اللون والمقاس أولاً'); return; }
     variants.forEach(v => {
@@ -260,61 +254,40 @@ const ProductPage = () => {
         image: allImages[0], color: v.color || undefined, size: v.size || undefined, quantity: v.quantity,
       });
     });
-    toast.success(`تمت الإضافة للسلة ✓`);
+    toast.success('تمت الإضافة للسلة ✓');
     trackEvent('add_to_cart', product.id, { qty: totalQty });
-    fbTrack('AddToCart', {
-      content_name: product.name,
-      content_ids: [product.id],
-      content_type: 'product',
-      value: totalProductPrice,
-      currency: 'EGP',
-      num_items: totalQty,
-    });
+    fbTrack('AddToCart', { content_name: product.name, content_ids: [product.id], value: totalProductPrice, currency: 'EGP', num_items: totalQty });
     navigator.vibrate?.(50);
   };
 
-  // ── Share product ──
   const handleShare = async () => {
     const url = window.location.href;
     try { await navigator.share({ title: product.name, url }); }
     catch { await navigator.clipboard.writeText(url); toast.success('تم نسخ الرابط'); }
   };
 
-  // ── Share specific pieces (locked link) ──
   const handleSharePieces = async () => {
-    if (!isSelectionValid) { toast.error('يرجى اختيار اللون والمقاس لكل قطعة أولاً'); return; }
+    if (!isSelectionValid) { toast.error('يرجى اختيار اللون والمقاس أولاً'); return; }
     const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(variants))));
     const url = `${window.location.origin}/product/${id}?share=${encoded}`;
     try {
       await navigator.clipboard.writeText(url);
       toast.success('تم نسخ رابط المشاركة بنجاح ✅');
     } catch {
-      const textArea = document.createElement('textarea');
-      textArea.value = url;
-      textArea.style.position = 'fixed';
-      textArea.style.opacity = '0';
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
+      const ta = document.createElement('textarea');
+      ta.value = url; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
       toast.success('تم نسخ رابط المشاركة بنجاح ✅');
     }
   };
 
-  // ── Direct Buy ──
   const handleDirectBuy = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isSelectionValid) { toast.error('يرجى اختيار اللون والمقاس لكل قطعة'); return; }
     if (!buyName || !buyPhone || !buyAddress || !buyGovId) { toast.error('يرجى ملء جميع الحقول المطلوبة'); return; }
     setIsSubmitting(true);
     trackEvent('checkout_start', product.id, { qty: totalQty });
-    fbTrack('InitiateCheckout', {
-      content_ids: [product.id],
-      content_type: 'product',
-      value: grandTotal,
-      currency: 'EGP',
-      num_items: totalQty,
-    });
+    fbTrack('InitiateCheckout', { content_ids: [product.id], value: grandTotal, currency: 'EGP', num_items: totalQty });
     try {
       const { data: customer, error: custErr } = await supabase
         .from('customers').insert({ name: buyName, phone: buyPhone, address: buyAddress, governorate: selectedGov?.name || '' }).select().single();
@@ -330,20 +303,15 @@ const ProductPage = () => {
       const { error: itemsErr } = await supabase.from('order_items').insert(orderItems);
       if (itemsErr) throw itemsErr;
       trackEvent('order_complete', product.id, { qty: totalQty, order_id: order.id });
-      fbTrack('Purchase', {
-        content_ids: [product.id],
-        content_type: 'product',
-        value: grandTotal,
-        currency: 'EGP',
-        num_items: totalQty,
-      });
+      fbTrack('Purchase', { content_ids: [product.id], value: grandTotal, currency: 'EGP', num_items: totalQty });
       setOrderNumber(order.order_number || 0);
       navigator.vibrate?.([100, 50, 100]);
-    } catch (err) {
-      console.error(err);
-      toast.error('حدث خطأ أثناء إرسال الطلب');
-    } finally { setIsSubmitting(false); }
+    } catch (err) { console.error(err); toast.error('حدث خطأ أثناء إرسال الطلب'); }
+    finally { setIsSubmitting(false); }
   };
+
+  // ── Determine which colors have active combos ──
+  const activeColors = new Set(Object.keys(combos).map(k => k.split('||')[0]).filter(Boolean));
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="min-h-screen pb-24" dir="rtl">
@@ -355,10 +323,8 @@ const ProductPage = () => {
         </div>
       </div>
 
-      {/* Image Gallery */}
       <div className="mt-12"><ImageGallery images={allImages} productName={product.name} /></div>
 
-      {/* Locked share banner */}
       {isLocked && (
         <div className="mx-4 mt-3 bg-primary/15 border-2 border-primary/40 rounded-xl p-3 flex items-center gap-2">
           <Link2 size={18} className="text-primary shrink-0" />
@@ -366,8 +332,8 @@ const ProductPage = () => {
         </div>
       )}
 
-      {/* Product Info */}
       <div className="px-4 py-4 space-y-4">
+        {/* Name & Rating */}
         <div className="flex items-start justify-between gap-2">
           <h1 className="text-xl font-bold leading-tight flex-1">{product.name}</h1>
           {product.rating != null && product.rating > 0 && (
@@ -396,11 +362,9 @@ const ProductPage = () => {
           <p className="text-sm text-destructive font-semibold">⚠️ باقي {product.stock} قطع فقط!</p>
         )}
 
-        {product.description && (
-          <p className="text-sm text-muted-foreground leading-relaxed">{product.description}</p>
-        )}
+        {product.description && <p className="text-sm text-muted-foreground leading-relaxed">{product.description}</p>}
 
-        {/* Quantity Pricing Tiers */}
+        {/* Quantity Tiers */}
         {tiers.length > 0 && (
           <div className="bg-primary/10 rounded-xl p-3 border border-primary/20">
             <h3 className="text-sm font-bold mb-2 text-primary">🎁 عروض الكمية</h3>
@@ -420,110 +384,199 @@ const ProductPage = () => {
           </div>
         )}
 
-        {/* ── Simplified Variant Selections ── */}
-        <div className="bg-primary/10 rounded-2xl p-4 space-y-3 border-2 border-primary/30 shadow-lg">
-          <h3 className="font-bold text-lg text-primary">🎨 اختر المطلوب</h3>
+        {/* ── Variant Selection ── */}
+        <div className="bg-primary/10 rounded-2xl p-4 space-y-4 border-2 border-primary/30 shadow-lg">
+          {needsVariants ? (
+            <>
+              <h3 className="font-bold text-lg text-primary">🎨 اختر اللون والمقاس</h3>
+              <p className="text-xs text-muted-foreground -mt-2">اضغط على اللون ثم المقاس لإضافته، واستخدم +/- لتعديل الكمية</p>
 
-          {variants.map((sel, i) => (
-            <div key={i} className="bg-background rounded-xl p-3 space-y-3 border border-primary/20 shadow-sm">
-              {/* Header with qty and remove */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <span className="text-sm font-bold text-primary">📦 {variants.length > 1 ? `قطعة ${i + 1}` : 'الكمية'}</span>
-                  <div className="flex items-center gap-2 bg-primary/10 rounded-xl px-2 py-1 border border-primary/20">
-                    {!isLocked && (
-                      <button onClick={() => handleVariantQtyChange(i, -1)} className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center text-primary active:scale-90 transition-transform">
-                        <Minus size={14} />
-                      </button>
-                    )}
-                    <span className="text-base font-bold text-primary w-8 text-center">{sel.quantity}</span>
-                    {!isLocked && (
-                      <button onClick={() => handleVariantQtyChange(i, 1)} className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center text-primary active:scale-90 transition-transform">
-                        <Plus size={14} />
-                      </button>
-                    )}
-                  </div>
-                </div>
-                {variants.length > 1 && !isLocked && (
-                  <button onClick={() => handleRemoveVariant(i)} className="w-7 h-7 rounded-lg bg-destructive/10 flex items-center justify-center text-destructive">
-                    <Trash2 size={14} />
-                  </button>
-                )}
-              </div>
-
-              {/* Color */}
+              {/* Colors */}
               {hasColors && (
                 <div>
-                  <p className="text-xs font-bold text-foreground mb-1.5">اللون</p>
+                  <p className="text-xs font-bold text-foreground mb-2">الألوان</p>
                   <div className="flex flex-wrap gap-2">
-                    {colors.map(c => (
-                      <button key={c}
-                        onClick={() => handleVariantColorChange(i, c)}
-                        disabled={isLocked}
-                        className={`px-4 py-1.5 rounded-lg text-sm font-semibold border-2 transition-all ${sel.color === c ? 'border-primary bg-primary text-primary-foreground shadow-md scale-105' : 'border-primary/30 bg-primary/5 text-primary hover:bg-primary/10'} ${isLocked ? 'opacity-80 cursor-default' : ''}`}
-                      >{c}</button>
-                    ))}
+                    {colors.map(c => {
+                      const isActive = activeColors.has(c);
+                      return (
+                        <button key={c} disabled={isLocked}
+                          className={`px-4 py-2 rounded-xl text-sm font-bold border-2 transition-all ${isActive ? 'border-primary bg-primary text-primary-foreground shadow-md scale-105' : 'border-primary/30 bg-background text-primary hover:bg-primary/10'} ${isLocked ? 'opacity-80 cursor-default' : ''}`}
+                        >
+                          {c}
+                          {isActive && (
+                            <span className="mr-1 text-xs opacity-80">
+                              ({Object.entries(combos).filter(([k]) => k.startsWith(c + '||')).reduce((s, [, q]) => s + q, 0)})
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
-              {/* Size */}
-              {sel.color && getSizesForColor(sel.color).length > 0 && (
-                <div>
-                  <p className="text-xs font-bold text-foreground mb-1.5">المقاس</p>
+              {/* Sizes per color (or global sizes if no colors) */}
+              {hasColors ? (
+                colors.map(color => {
+                  const sizes = getSizesForColor(color);
+                  if (sizes.length === 0) {
+                    // Color without sizes — single toggle
+                    const key = comboKey(color, '');
+                    const qty = combos[key] || 0;
+                    return (
+                      <div key={color} className="bg-background rounded-xl p-3 border border-primary/15">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-bold text-foreground">{color}</span>
+                          <div className="flex items-center gap-2">
+                            {qty > 0 ? (
+                              <div className="flex items-center gap-2 bg-primary/10 rounded-xl px-2 py-1 border border-primary/20">
+                                {!isLocked && (
+                                  <button onClick={() => changeComboQty(key, -1)} className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center text-primary active:scale-90 transition-transform">
+                                    <Minus size={14} />
+                                  </button>
+                                )}
+                                <span className="text-base font-bold text-primary w-6 text-center">{qty}</span>
+                                {!isLocked && (
+                                  <button onClick={() => changeComboQty(key, 1)} className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center text-primary active:scale-90 transition-transform">
+                                    <Plus size={14} />
+                                  </button>
+                                )}
+                              </div>
+                            ) : !isLocked && (
+                              <button onClick={() => toggleCombo(color, '')} className="px-3 py-1 rounded-lg bg-primary/10 text-primary text-xs font-bold border border-primary/20">
+                                + أضف
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={color} className="bg-background rounded-xl p-3 space-y-2 border border-primary/15">
+                      <p className="text-sm font-bold text-foreground">{color}</p>
+                      <div className="flex flex-wrap gap-2">
+                        {sizes.map(size => {
+                          const key = comboKey(color, size);
+                          const qty = combos[key] || 0;
+                          const isActive = qty > 0;
+                          return (
+                            <div key={size} className="flex flex-col items-center gap-1">
+                              <button
+                                onClick={() => !isActive && !isLocked && toggleCombo(color, size)}
+                                disabled={isLocked}
+                                className={`px-4 py-1.5 rounded-lg text-sm font-semibold border-2 transition-all min-w-[3rem] ${isActive ? 'border-primary bg-primary text-primary-foreground shadow-md' : 'border-primary/30 bg-primary/5 text-primary hover:bg-primary/10'} ${isLocked ? 'opacity-80 cursor-default' : ''}`}
+                              >
+                                {size}
+                              </button>
+                              {isActive && (
+                                <div className="flex items-center gap-1 bg-primary/10 rounded-lg px-1 py-0.5 border border-primary/20">
+                                  {!isLocked && (
+                                    <button onClick={() => changeComboQty(key, -1)} className="w-6 h-6 rounded flex items-center justify-center text-primary active:scale-90 transition-transform">
+                                      <Minus size={12} />
+                                    </button>
+                                  )}
+                                  <span className="text-sm font-bold text-primary w-5 text-center">{qty}</span>
+                                  {!isLocked && (
+                                    <button onClick={() => changeComboQty(key, 1)} className="w-6 h-6 rounded flex items-center justify-center text-primary active:scale-90 transition-transform">
+                                      <Plus size={12} />
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })
+              ) : hasSizes && (
+                <div className="bg-background rounded-xl p-3 space-y-2 border border-primary/15">
+                  <p className="text-sm font-bold text-foreground">المقاس</p>
                   <div className="flex flex-wrap gap-2">
-                    {getSizesForColor(sel.color).map(s => (
-                      <button key={s}
-                        onClick={() => handleVariantSizeChange(i, s)}
-                        disabled={isLocked}
-                        className={`px-4 py-1.5 rounded-lg text-sm font-semibold border-2 transition-all ${sel.size === s ? 'border-primary bg-primary text-primary-foreground shadow-md scale-105' : 'border-primary/30 bg-primary/5 text-primary hover:bg-primary/10'} ${isLocked ? 'opacity-80 cursor-default' : ''}`}
-                      >{s}</button>
-                    ))}
+                    {globalSizes.map(size => {
+                      const key = comboKey('', size);
+                      const qty = combos[key] || 0;
+                      const isActive = qty > 0;
+                      return (
+                        <div key={size} className="flex flex-col items-center gap-1">
+                          <button
+                            onClick={() => !isActive && !isLocked && toggleCombo('', size)}
+                            disabled={isLocked}
+                            className={`px-4 py-1.5 rounded-lg text-sm font-semibold border-2 transition-all min-w-[3rem] ${isActive ? 'border-primary bg-primary text-primary-foreground shadow-md' : 'border-primary/30 bg-primary/5 text-primary hover:bg-primary/10'} ${isLocked ? 'opacity-80 cursor-default' : ''}`}
+                          >
+                            {size}
+                          </button>
+                          {isActive && (
+                            <div className="flex items-center gap-1 bg-primary/10 rounded-lg px-1 py-0.5 border border-primary/20">
+                              {!isLocked && (
+                                <button onClick={() => changeComboQty(key, -1)} className="w-6 h-6 rounded flex items-center justify-center text-primary active:scale-90 transition-transform">
+                                  <Minus size={12} />
+                                </button>
+                              )}
+                              <span className="text-sm font-bold text-primary w-5 text-center">{qty}</span>
+                              {!isLocked && (
+                                <button onClick={() => changeComboQty(key, 1)} className="w-6 h-6 rounded flex items-center justify-center text-primary active:scale-90 transition-transform">
+                                  <Plus size={12} />
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
-              {/* Show sizes when no colors */}
-              {!hasColors && hasSizes && (
-                <div>
-                  <p className="text-xs font-bold text-foreground mb-1.5">المقاس</p>
-                  <div className="flex flex-wrap gap-2">
-                    {(product.size_options || []).map(s => (
-                      <button key={s}
-                        onClick={() => handleVariantSizeChange(i, s)}
-                        disabled={isLocked}
-                        className={`px-4 py-1.5 rounded-lg text-sm font-semibold border-2 transition-all ${sel.size === s ? 'border-primary bg-primary text-primary-foreground shadow-md scale-105' : 'border-primary/30 bg-primary/5 text-primary hover:bg-primary/10'} ${isLocked ? 'opacity-80 cursor-default' : ''}`}
-                      >{s}</button>
+              {/* Summary of selected */}
+              {totalQty > 0 && (
+                <div className="bg-background rounded-xl p-3 border border-primary/20">
+                  <p className="text-xs font-bold text-primary mb-2">📦 الملخص ({totalQty} قطعة)</p>
+                  <div className="space-y-1">
+                    {variants.map((v, i) => (
+                      <div key={i} className="flex justify-between text-xs">
+                        <span>{v.color}{v.color && v.size ? ' - ' : ''}{v.size}</span>
+                        <span className="font-bold">×{v.quantity}</span>
+                      </div>
                     ))}
                   </div>
                 </div>
               )}
-            </div>
-          ))}
-
-          {/* Add another variant */}
-          {!isLocked && totalQty < MAX_QTY && (
-            <button onClick={handleAddVariant}
-              className="w-full border border-dashed border-primary text-primary text-sm rounded-xl py-2.5 hover:bg-primary/5 transition-colors font-semibold">
-              + إضافة لون/مقاس مختلف
-            </button>
-          )}
-          {totalQty >= MAX_QTY && !isLocked && (
-            <p className="text-xs text-center text-muted-foreground bg-muted rounded-lg p-2">
-              وصلت للحد الأقصى ({MAX_QTY} قطعة). لطلب كميات أكبر يرجى فتح طلب جديد.
-            </p>
+            </>
+          ) : (
+            /* No colors/sizes — just quantity */
+            <>
+              <h3 className="font-bold text-lg text-primary">📦 الكمية</h3>
+              <div className="flex items-center gap-3 bg-background rounded-xl p-3 border border-primary/20">
+                {!isLocked && (
+                  <button onClick={() => changeSimpleQty(-1)} className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center text-primary active:scale-90 transition-transform">
+                    <Minus size={16} />
+                  </button>
+                )}
+                <span className="text-xl font-bold text-primary w-10 text-center">{simpleQty}</span>
+                {!isLocked && (
+                  <button onClick={() => changeSimpleQty(1)} className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center text-primary active:scale-90 transition-transform">
+                    <Plus size={16} />
+                  </button>
+                )}
+                <span className="text-sm text-muted-foreground mr-2">قطعة</span>
+              </div>
+            </>
           )}
         </div>
 
-        {/* ── Share Pieces Button ── */}
-        {!isLocked && (
+        {/* Share Pieces */}
+        {!isLocked && needsVariants && totalQty > 0 && (
           <Button onClick={handleSharePieces} variant="outline"
             className="w-full h-11 font-bold text-sm gap-2 rounded-xl border-primary text-primary">
             <Link2 size={16} /> مشاركة القطع المحددة كرابط
           </Button>
         )}
 
-        {/* ── Direct Buy Form ── */}
+        {/* Direct Buy Form */}
         <div className="bg-primary/10 rounded-2xl p-5 space-y-4 shadow-lg border-2 border-primary/30">
           <h3 className="font-bold text-xl text-primary">🛒 اطلب الآن</h3>
           <p className="text-sm text-muted-foreground">أكمل بياناتك لإتمام الطلب مباشرة بدون سلة</p>
@@ -566,7 +619,7 @@ const ProductPage = () => {
               {isSubmitting ? <Loader2 className="animate-spin" /> : `إتمام الطلب — ${grandTotal} ج.م`}
             </Button>
             {!isSelectionValid && (
-              <p className="text-xs text-center text-destructive">يجب اختيار اللون والمقاس لكل قطعة أولاً</p>
+              <p className="text-xs text-center text-destructive">يجب اختيار اللون والمقاس أولاً</p>
             )}
           </form>
         </div>
@@ -579,7 +632,7 @@ const ProductPage = () => {
           </Button>
         )}
 
-        {/* Related Products */}
+        {/* Related */}
         {relatedProducts && relatedProducts.length > 0 && (
           <div className="mt-6">
             <h2 className="text-base font-bold mb-3">منتجات مشابهة</h2>
