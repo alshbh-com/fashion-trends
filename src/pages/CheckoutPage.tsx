@@ -61,6 +61,12 @@ const CheckoutPage = () => {
     }
     setIsSubmitting(true);
     trackEvent('checkout_start');
+    fbTrack('InitiateCheckout', {
+      content_type: 'product',
+      value: grandTotal,
+      currency: 'EGP',
+      num_items: items.length,
+    });
     try {
       // Create customer
       const { data: customer, error: custError } = await supabase
