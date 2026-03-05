@@ -106,6 +106,12 @@ const CheckoutPage = () => {
       if (itemsError) throw itemsError;
 
       setOrderNumber(order.order_number || 0);
+      fbTrack('Purchase', {
+        content_type: 'product',
+        value: grandTotal,
+        currency: 'EGP',
+        num_items: items.length,
+      });
       clearCart();
       navigator.vibrate?.([100, 50, 100]);
     } catch (err) {
