@@ -9,6 +9,7 @@ import { motion } from 'framer-motion';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { trackEvent } from '@/lib/analytics';
+import { fbTrack } from '@/lib/fbpixel';
 
 const CheckoutPage = () => {
   const { items, totalPrice, clearCart } = useCart();
@@ -60,6 +61,12 @@ const CheckoutPage = () => {
     }
     setIsSubmitting(true);
     trackEvent('checkout_start');
+    fbTrack('InitiateCheckout', {
+      content_type: 'product',
+      value: grandTotal,
+      currency: 'EGP',
+      num_items: items.length,
+    });
     try {
       // Create customer
       const { data: customer, error: custError } = await supabase
@@ -99,6 +106,12 @@ const CheckoutPage = () => {
       if (itemsError) throw itemsError;
 
       setOrderNumber(order.order_number || 0);
+      fbTrack('Purchase', {
+        content_type: 'product',
+        value: grandTotal,
+        currency: 'EGP',
+        num_items: items.length,
+      });
       clearCart();
       navigator.vibrate?.([100, 50, 100]);
     } catch (err) {
