@@ -4,7 +4,7 @@ import { useCart } from '@/contexts/CartContext';
 import { useGovernorates } from '@/hooks/useGovernorates';
 import { supabase } from '@/integrations/supabase/client';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowRight, Share2, ShoppingCart, Star, Minus, Plus, ChevronLeft, ChevronRight, CheckCircle2, Loader2, Link2 } from 'lucide-react';
+import { ArrowRight, Share2, ShoppingCart, Star, Minus, Plus, ChevronLeft, ChevronRight, CheckCircle2, Loader2, Link2, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,6 +13,7 @@ import { ProductCard } from '@/components/product/ProductCard';
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { trackEvent } from '@/lib/analytics';
+import { fbTrack } from '@/lib/fbpixel';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface QuantityPricingTier {
@@ -83,72 +84,6 @@ const ImageGallery = ({ images, productName }: { images: string[]; productName: 
   );
 };
 
-// ─── Variant Selector Row ─────────────────────────────────────────────────────
-const VariantSelectorRow = ({
-  sel, colors, getSizesForColor, onChange, onRemove, index, locked,
-}: {
-  sel: VariantSelection;
-  colors: string[];
-  getSizesForColor: (c: string) => string[];
-  onChange: (index: number, updated: VariantSelection) => void;
-  onRemove: (index: number) => void;
-  index: number;
-  locked?: boolean;
-}) => {
-  const sizes = getSizesForColor(sel.color);
-  return (
-    <div className="bg-background rounded-xl p-3 space-y-3 border border-primary/20 shadow-sm">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-bold text-primary">📦 قطعة {index + 1}</span>
-        {index > 0 && !locked && (
-          <button onClick={() => onRemove(index)} className="text-destructive text-xs font-semibold">حذف</button>
-        )}
-      </div>
-      {/* Color */}
-      <div>
-        <p className="text-xs font-bold text-foreground mb-1.5">اللون</p>
-        <div className="flex flex-wrap gap-2">
-          {colors.map(c => (
-            <button key={c}
-              onClick={() => !locked && onChange(index, { ...sel, color: c, size: '' })}
-              disabled={locked}
-              className={`px-4 py-1.5 rounded-lg text-sm font-semibold border-2 transition-all ${sel.color === c ? 'border-primary bg-primary text-primary-foreground shadow-md scale-105' : 'border-primary/30 bg-primary/5 text-primary hover:bg-primary/10'} ${locked ? 'opacity-80 cursor-default' : ''}`}
-            >{c}</button>
-          ))}
-        </div>
-      </div>
-      {/* Size */}
-      {sel.color && sizes.length > 0 && (
-        <div>
-          <p className="text-xs font-bold text-foreground mb-1.5">المقاس</p>
-          <div className="flex flex-wrap gap-2">
-            {sizes.map(s => (
-              <button key={s}
-                onClick={() => !locked && onChange(index, { ...sel, size: s })}
-                disabled={locked}
-                className={`px-4 py-1.5 rounded-lg text-sm font-semibold border-2 transition-all ${sel.size === s ? 'border-primary bg-primary text-primary-foreground shadow-md scale-105' : 'border-primary/30 bg-primary/5 text-primary hover:bg-primary/10'} ${locked ? 'opacity-80 cursor-default' : ''}`}
-              >{s}</button>
-            ))}
-          </div>
-        </div>
-      )}
-      {/* Qty */}
-      <div className="flex items-center gap-3">
-        <span className="text-xs font-bold text-foreground">الكمية</span>
-        <div className="flex items-center gap-3 bg-primary/10 rounded-xl px-3 py-1.5 border border-primary/20">
-          {!locked && (
-            <button onClick={() => onChange(index, { ...sel, quantity: Math.max(1, sel.quantity - 1) })} className="text-primary"><Minus size={14} /></button>
-          )}
-          <span className="text-base font-bold text-primary w-6 text-center">{sel.quantity}</span>
-          {!locked && (
-            <button onClick={() => onChange(index, { ...sel, quantity: sel.quantity + 1 })} className="text-primary"><Plus size={14} /></button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-};
-
 // ─── Order Success Screen ─────────────────────────────────────────────────────
 const OrderSuccess = ({ orderNumber, onBack }: { orderNumber: number; onBack: () => void }) => (
   <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
@@ -180,7 +115,7 @@ const ProductPage = () => {
   const sharedData = useMemo(() => {
     const s = searchParams.get('share');
     if (!s) return null;
-    try { return JSON.parse(atob(s)) as VariantSelection[]; }
+    try { return JSON.parse(decodeURIComponent(escape(atob(s)))) as VariantSelection[]; }
     catch { return null; }
   }, [searchParams]);
 
@@ -195,7 +130,7 @@ const ProductPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderNumber, setOrderNumber] = useState<number | null>(null);
 
-  // Variant selections
+  // Variant selections — simplified: list of {color, size, quantity}
   const [variants, setVariants] = useState<VariantSelection[]>([{ color: '', size: '', quantity: 1 }]);
 
   // Initialize from shared data
@@ -205,10 +140,22 @@ const ProductPage = () => {
     }
   }, [sharedData]);
 
-  // Track page visit
+  // Track page visit + FB pixel
   useEffect(() => {
     if (id) trackEvent('page_visit', id);
   }, [id]);
+
+  useEffect(() => {
+    if (product) {
+      fbTrack('ViewContent', {
+        content_name: product.name,
+        content_ids: [product.id],
+        content_type: 'product',
+        value: product.price,
+        currency: 'EGP',
+      });
+    }
+  }, [product]);
 
   if (isLoading) {
     return (
@@ -249,31 +196,59 @@ const ProductPage = () => {
   const shippingCost = selectedGov?.shipping_cost || 0;
   const grandTotal = totalProductPrice + shippingCost;
 
-  // ── Variant helpers ──
-  const handleVariantChange = (index: number, updated: VariantSelection) => {
-    if (isLocked) return;
-    setVariants(prev => prev.map((v, i) => i === index ? updated : v));
-  };
-  const handleVariantRemove = (index: number) => {
-    if (isLocked) return;
-    setVariants(prev => prev.filter((_, i) => i !== index));
-  };
-  const handleAddVariantRow = () => {
-    if (isLocked) return;
-    const newTotal = totalQty + 1;
-    if (newTotal > MAX_QTY) {
-      toast.error(`الحد الأقصى ${MAX_QTY} قطعة. يرجى فتح طلب جديد`);
-      return;
-    }
-    setVariants(prev => [...prev, { color: '', size: '', quantity: 1 }]);
-  };
-
   const hasColors = colors.length > 0;
   const hasSizes = getSizesForColor(variants[0]?.color || '').length > 0 || (product.size_options || []).length > 0;
   const isSelectionValid = (
     (!hasColors || variants.every(v => v.color)) &&
     (!hasSizes || variants.every(v => v.size))
   );
+
+  // ── Variant helpers (simplified) ──
+  const handleVariantQtyChange = (index: number, delta: number) => {
+    if (isLocked) return;
+    setVariants(prev => {
+      const updated = [...prev];
+      const newQty = updated[index].quantity + delta;
+      if (newQty <= 0) {
+        // Remove this variant if qty goes to 0 and there's more than one
+        if (updated.length > 1) {
+          return updated.filter((_, i) => i !== index);
+        }
+        return updated; // Keep at least one
+      }
+      const newTotal = totalQty + delta;
+      if (newTotal > MAX_QTY) {
+        toast.error(`الحد الأقصى ${MAX_QTY} قطعة لكل طلب`);
+        return updated;
+      }
+      updated[index] = { ...updated[index], quantity: newQty };
+      return updated;
+    });
+  };
+
+  const handleVariantColorChange = (index: number, color: string) => {
+    if (isLocked) return;
+    setVariants(prev => prev.map((v, i) => i === index ? { ...v, color, size: '' } : v));
+  };
+
+  const handleVariantSizeChange = (index: number, size: string) => {
+    if (isLocked) return;
+    setVariants(prev => prev.map((v, i) => i === index ? { ...v, size } : v));
+  };
+
+  const handleRemoveVariant = (index: number) => {
+    if (isLocked || variants.length <= 1) return;
+    setVariants(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAddVariant = () => {
+    if (isLocked) return;
+    if (totalQty >= MAX_QTY) {
+      toast.error(`الحد الأقصى ${MAX_QTY} قطعة. يرجى فتح طلب جديد`);
+      return;
+    }
+    setVariants(prev => [...prev, { color: '', size: '', quantity: 1 }]);
+  };
 
   // ── Add to Cart ──
   const handleAddToCart = () => {
@@ -287,6 +262,14 @@ const ProductPage = () => {
     });
     toast.success(`تمت الإضافة للسلة ✓`);
     trackEvent('add_to_cart', product.id, { qty: totalQty });
+    fbTrack('AddToCart', {
+      content_name: product.name,
+      content_ids: [product.id],
+      content_type: 'product',
+      value: totalProductPrice,
+      currency: 'EGP',
+      num_items: totalQty,
+    });
     navigator.vibrate?.(50);
   };
 
@@ -306,7 +289,6 @@ const ProductPage = () => {
       await navigator.clipboard.writeText(url);
       toast.success('تم نسخ رابط المشاركة بنجاح ✅');
     } catch {
-      // Fallback for older browsers
       const textArea = document.createElement('textarea');
       textArea.value = url;
       textArea.style.position = 'fixed';
@@ -326,6 +308,13 @@ const ProductPage = () => {
     if (!buyName || !buyPhone || !buyAddress || !buyGovId) { toast.error('يرجى ملء جميع الحقول المطلوبة'); return; }
     setIsSubmitting(true);
     trackEvent('checkout_start', product.id, { qty: totalQty });
+    fbTrack('InitiateCheckout', {
+      content_ids: [product.id],
+      content_type: 'product',
+      value: grandTotal,
+      currency: 'EGP',
+      num_items: totalQty,
+    });
     try {
       const { data: customer, error: custErr } = await supabase
         .from('customers').insert({ name: buyName, phone: buyPhone, address: buyAddress, governorate: selectedGov?.name || '' }).select().single();
@@ -341,6 +330,13 @@ const ProductPage = () => {
       const { error: itemsErr } = await supabase.from('order_items').insert(orderItems);
       if (itemsErr) throw itemsErr;
       trackEvent('order_complete', product.id, { qty: totalQty, order_id: order.id });
+      fbTrack('Purchase', {
+        content_ids: [product.id],
+        content_type: 'product',
+        value: grandTotal,
+        currency: 'EGP',
+        num_items: totalQty,
+      });
       setOrderNumber(order.order_number || 0);
       navigator.vibrate?.([100, 50, 100]);
     } catch (err) {
@@ -424,18 +420,92 @@ const ProductPage = () => {
           </div>
         )}
 
-        {/* ── Variant selections ── */}
+        {/* ── Simplified Variant Selections ── */}
         <div className="bg-primary/10 rounded-2xl p-4 space-y-3 border-2 border-primary/30 shadow-lg">
-          <h3 className="font-bold text-lg text-primary">🎨 اختر اللون والمقاس والكمية</h3>
+          <h3 className="font-bold text-lg text-primary">🎨 اختر المطلوب</h3>
+
           {variants.map((sel, i) => (
-            <VariantSelectorRow key={i} index={i} sel={sel} colors={colors}
-              getSizesForColor={getSizesForColor} onChange={handleVariantChange}
-              onRemove={handleVariantRemove} locked={isLocked} />
+            <div key={i} className="bg-background rounded-xl p-3 space-y-3 border border-primary/20 shadow-sm">
+              {/* Header with qty and remove */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-bold text-primary">📦 {variants.length > 1 ? `قطعة ${i + 1}` : 'الكمية'}</span>
+                  <div className="flex items-center gap-2 bg-primary/10 rounded-xl px-2 py-1 border border-primary/20">
+                    {!isLocked && (
+                      <button onClick={() => handleVariantQtyChange(i, -1)} className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center text-primary active:scale-90 transition-transform">
+                        <Minus size={14} />
+                      </button>
+                    )}
+                    <span className="text-base font-bold text-primary w-8 text-center">{sel.quantity}</span>
+                    {!isLocked && (
+                      <button onClick={() => handleVariantQtyChange(i, 1)} className="w-7 h-7 rounded-lg bg-primary/20 flex items-center justify-center text-primary active:scale-90 transition-transform">
+                        <Plus size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+                {variants.length > 1 && !isLocked && (
+                  <button onClick={() => handleRemoveVariant(i)} className="w-7 h-7 rounded-lg bg-destructive/10 flex items-center justify-center text-destructive">
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
+
+              {/* Color */}
+              {hasColors && (
+                <div>
+                  <p className="text-xs font-bold text-foreground mb-1.5">اللون</p>
+                  <div className="flex flex-wrap gap-2">
+                    {colors.map(c => (
+                      <button key={c}
+                        onClick={() => handleVariantColorChange(i, c)}
+                        disabled={isLocked}
+                        className={`px-4 py-1.5 rounded-lg text-sm font-semibold border-2 transition-all ${sel.color === c ? 'border-primary bg-primary text-primary-foreground shadow-md scale-105' : 'border-primary/30 bg-primary/5 text-primary hover:bg-primary/10'} ${isLocked ? 'opacity-80 cursor-default' : ''}`}
+                      >{c}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Size */}
+              {sel.color && getSizesForColor(sel.color).length > 0 && (
+                <div>
+                  <p className="text-xs font-bold text-foreground mb-1.5">المقاس</p>
+                  <div className="flex flex-wrap gap-2">
+                    {getSizesForColor(sel.color).map(s => (
+                      <button key={s}
+                        onClick={() => handleVariantSizeChange(i, s)}
+                        disabled={isLocked}
+                        className={`px-4 py-1.5 rounded-lg text-sm font-semibold border-2 transition-all ${sel.size === s ? 'border-primary bg-primary text-primary-foreground shadow-md scale-105' : 'border-primary/30 bg-primary/5 text-primary hover:bg-primary/10'} ${isLocked ? 'opacity-80 cursor-default' : ''}`}
+                      >{s}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Show sizes when no colors */}
+              {!hasColors && hasSizes && (
+                <div>
+                  <p className="text-xs font-bold text-foreground mb-1.5">المقاس</p>
+                  <div className="flex flex-wrap gap-2">
+                    {(product.size_options || []).map(s => (
+                      <button key={s}
+                        onClick={() => handleVariantSizeChange(i, s)}
+                        disabled={isLocked}
+                        className={`px-4 py-1.5 rounded-lg text-sm font-semibold border-2 transition-all ${sel.size === s ? 'border-primary bg-primary text-primary-foreground shadow-md scale-105' : 'border-primary/30 bg-primary/5 text-primary hover:bg-primary/10'} ${isLocked ? 'opacity-80 cursor-default' : ''}`}
+                      >{s}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           ))}
+
+          {/* Add another variant */}
           {!isLocked && totalQty < MAX_QTY && (
-            <button onClick={handleAddVariantRow}
-              className="w-full border border-dashed border-primary text-primary text-sm rounded-xl py-2 hover:bg-primary/5 transition-colors">
-              + إضافة مقاس/لون مختلف
+            <button onClick={handleAddVariant}
+              className="w-full border border-dashed border-primary text-primary text-sm rounded-xl py-2.5 hover:bg-primary/5 transition-colors font-semibold">
+              + إضافة لون/مقاس مختلف
             </button>
           )}
           {totalQty >= MAX_QTY && !isLocked && (
