@@ -464,7 +464,7 @@ const ProductPage = () => {
                           return (
                             <div key={size} className="flex flex-col items-center gap-1">
                               <button
-                                onClick={() => !isActive && !isLocked && toggleCombo(color, size)}
+                            onClick={() => !isLocked && toggleCombo(color, size)}
                                 disabled={isLocked}
                                 className={`px-4 py-1.5 rounded-lg text-sm font-semibold border-2 transition-all min-w-[3rem] ${isActive ? 'border-primary bg-primary text-primary-foreground shadow-md' : 'border-primary/30 bg-primary/5 text-primary hover:bg-primary/10'} ${isLocked ? 'opacity-80 cursor-default' : ''}`}
                               >
@@ -503,7 +503,7 @@ const ProductPage = () => {
                       return (
                         <div key={size} className="flex flex-col items-center gap-1">
                           <button
-                            onClick={() => !isActive && !isLocked && toggleCombo('', size)}
+                            onClick={() => !isLocked && toggleCombo('', size)}
                             disabled={isLocked}
                             className={`px-4 py-1.5 rounded-lg text-sm font-semibold border-2 transition-all min-w-[3rem] ${isActive ? 'border-primary bg-primary text-primary-foreground shadow-md' : 'border-primary/30 bg-primary/5 text-primary hover:bg-primary/10'} ${isLocked ? 'opacity-80 cursor-default' : ''}`}
                           >
@@ -569,7 +569,7 @@ const ProductPage = () => {
         </div>
 
         {/* Share Pieces */}
-        {!isLocked && needsVariants && totalQty > 0 && (
+        {!isLocked && totalQty > 0 && (
           <Button onClick={handleSharePieces} variant="outline"
             className="w-full h-11 font-bold text-sm gap-2 rounded-xl border-primary text-primary">
             <Link2 size={16} /> مشاركة القطع المحددة كرابط
