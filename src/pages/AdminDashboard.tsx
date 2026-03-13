@@ -34,8 +34,23 @@ const AdminDashboard = () => {
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   if (!isAuthenticated) return <Navigate to="/admin" replace />;
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const ext = file.name.split('.').pop();
+    const fileName = `banner-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from('banners').upload(fileName, file);
+    if (error) { toast.error('فشل رفع الصورة'); setUploading(false); return; }
+    const { data: urlData } = supabase.storage.from('banners').getPublicUrl(fileName);
+    setBannerUrl(urlData.publicUrl);
+    toast.success('تم رفع الصورة');
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleAddBanner = async () => {
-    if (!bannerUrl || !bannerTitle) { toast.error('أدخل العنوان والرابط'); return; }
+    if (!bannerUrl || !bannerTitle) { toast.error('أدخل العنوان والصورة'); return; }
     setSaving(true);
     const { error } = await supabase.from('banners').insert({ image_url: bannerUrl, title: bannerTitle, is_active: true });
     setSaving(false);
