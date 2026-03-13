@@ -17,13 +17,13 @@ export const HeroBanner = () => {
   if (!banners?.length) return null;
 
   return (
-    <div className="relative w-full aspect-[2/1] rounded-xl overflow-hidden">
+    <div className="relative w-full aspect-[2/1] rounded-xl overflow-hidden bg-muted">
       <AnimatePresence mode="wait">
         <motion.img
           key={banners[current].id}
           src={banners[current].image_url}
           alt={banners[current].title}
-          className="w-full h-full object-cover"
+          className="w-full h-full object-contain"
           initial={{ opacity: 0, x: 50 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -50 }}

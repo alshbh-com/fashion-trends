@@ -7,8 +7,8 @@ import { useAnalytics7Days } from '@/hooks/useAnalytics';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useState, useEffect } from 'react';
-import { LogOut, Image, Palette, Loader2, Sun, Moon, BarChart3, Eye, ShoppingCart, CreditCard, Package } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { LogOut, Image, Palette, Loader2, Sun, Moon, BarChart3, Eye, ShoppingCart, CreditCard, Package, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
 const AdminDashboard = () => {
@@ -21,6 +21,8 @@ const AdminDashboard = () => {
   const [themeHue, setThemeHue] = useState('340');
   const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light');
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (settings) {
@@ -32,8 +34,23 @@ const AdminDashboard = () => {
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" /></div>;
   if (!isAuthenticated) return <Navigate to="/admin" replace />;
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const ext = file.name.split('.').pop();
+    const fileName = `banner-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from('banners').upload(fileName, file);
+    if (error) { toast.error('فشل رفع الصورة'); setUploading(false); return; }
+    const { data: urlData } = supabase.storage.from('banners').getPublicUrl(fileName);
+    setBannerUrl(urlData.publicUrl);
+    toast.success('تم رفع الصورة');
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleAddBanner = async () => {
-    if (!bannerUrl || !bannerTitle) { toast.error('أدخل العنوان والرابط'); return; }
+    if (!bannerUrl || !bannerTitle) { toast.error('أدخل العنوان والصورة'); return; }
     setSaving(true);
     const { error } = await supabase.from('banners').insert({ image_url: bannerUrl, title: bannerTitle, is_active: true });
     setSaving(false);
@@ -103,7 +120,21 @@ const AdminDashboard = () => {
             <h2 className="font-bold">إدارة البانر</h2>
           </div>
           <Input value={bannerTitle} onChange={e => setBannerTitle(e.target.value)} placeholder="عنوان البانر" className="rounded-xl" />
-          <Input value={bannerUrl} onChange={e => setBannerUrl(e.target.value)} placeholder="رابط صورة البانر" className="rounded-xl" dir="ltr" />
+          <div className="space-y-2">
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+            <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading}
+              className="w-full rounded-xl gap-2">
+              {uploading ? <Loader2 className="animate-spin" size={16} /> : <Upload size={16} />}
+              {uploading ? 'جاري الرفع...' : 'رفع صورة من الجهاز'}
+            </Button>
+            {bannerUrl && (
+              <div className="relative">
+                <img src={bannerUrl} alt="preview" className="w-full h-32 object-contain rounded-xl border border-border bg-muted" />
+                <button onClick={() => setBannerUrl('')} className="absolute top-1 left-1 bg-destructive text-destructive-foreground rounded-full w-6 h-6 text-xs">✕</button>
+              </div>
+            )}
+            <Input value={bannerUrl} onChange={e => setBannerUrl(e.target.value)} placeholder="أو الصق رابط صورة" className="rounded-xl text-xs" dir="ltr" />
+          </div>
           <Button onClick={handleAddBanner} disabled={saving} className="w-full gradient-primary text-primary-foreground rounded-xl">
             {saving ? <Loader2 className="animate-spin" /> : 'إضافة بانر'}
           </Button>
