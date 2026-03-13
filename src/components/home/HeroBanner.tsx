@@ -17,7 +17,7 @@ export const HeroBanner = () => {
   if (!banners?.length) return null;
 
   return (
-    <div className="relative w-full aspect-[2/1] rounded-xl overflow-hidden">
+    <div className="relative w-full aspect-[2/1] rounded-xl overflow-hidden bg-muted">
       <AnimatePresence mode="wait">
         <motion.img
           key={banners[current].id}
