@@ -7,8 +7,8 @@ import { useAnalytics7Days } from '@/hooks/useAnalytics';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useState, useEffect } from 'react';
-import { LogOut, Image, Palette, Loader2, Sun, Moon, BarChart3, Eye, ShoppingCart, CreditCard, Package } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { LogOut, Image, Palette, Loader2, Sun, Moon, BarChart3, Eye, ShoppingCart, CreditCard, Package, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
 const AdminDashboard = () => {
@@ -21,6 +21,8 @@ const AdminDashboard = () => {
   const [themeHue, setThemeHue] = useState('340');
   const [themeMode, setThemeMode] = useState<'light' | 'dark'>('light');
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (settings) {
