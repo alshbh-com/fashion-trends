@@ -120,7 +120,21 @@ const AdminDashboard = () => {
             <h2 className="font-bold">إدارة البانر</h2>
           </div>
           <Input value={bannerTitle} onChange={e => setBannerTitle(e.target.value)} placeholder="عنوان البانر" className="rounded-xl" />
-          <Input value={bannerUrl} onChange={e => setBannerUrl(e.target.value)} placeholder="رابط صورة البانر" className="rounded-xl" dir="ltr" />
+          <div className="space-y-2">
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+            <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading}
+              className="w-full rounded-xl gap-2">
+              {uploading ? <Loader2 className="animate-spin" size={16} /> : <Upload size={16} />}
+              {uploading ? 'جاري الرفع...' : 'رفع صورة من الجهاز'}
+            </Button>
+            {bannerUrl && (
+              <div className="relative">
+                <img src={bannerUrl} alt="preview" className="w-full h-32 object-contain rounded-xl border border-border bg-muted" />
+                <button onClick={() => setBannerUrl('')} className="absolute top-1 left-1 bg-destructive text-destructive-foreground rounded-full w-6 h-6 text-xs">✕</button>
+              </div>
+            )}
+            <Input value={bannerUrl} onChange={e => setBannerUrl(e.target.value)} placeholder="أو الصق رابط صورة" className="rounded-xl text-xs" dir="ltr" />
+          </div>
           <Button onClick={handleAddBanner} disabled={saving} className="w-full gradient-primary text-primary-foreground rounded-xl">
             {saving ? <Loader2 className="animate-spin" /> : 'إضافة بانر'}
           </Button>
