@@ -23,7 +23,7 @@ export const HeroBanner = () => {
           key={banners[current].id}
           src={banners[current].image_url}
           alt={banners[current].title}
-          className="w-full h-full object-contain"
+          className="w-full h-full object-cover"
           initial={{ opacity: 0, x: 50 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -50 }}
