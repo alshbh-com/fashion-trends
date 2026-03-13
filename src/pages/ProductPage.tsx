@@ -47,7 +47,7 @@ const ImageGallery = ({ images, productName }: { images: string[]; productName: 
       onMouseDown={handleMouseDown} onMouseUp={handleMouseUp} style={{ cursor: 'grab' }}>
       <AnimatePresence mode="wait" initial={false}>
         <motion.img key={current} src={images[current]} alt={`${productName} ${current + 1}`}
-          className="w-full h-full object-cover pointer-events-none"
+          className="w-full h-full object-contain pointer-events-none"
           initial={{ opacity: 0, x: 60 }} animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -60 }} transition={{ duration: 0.25 }} draggable={false} />
       </AnimatePresence>
