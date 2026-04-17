@@ -29,22 +29,34 @@ const getEffectivePrice = (basePrice: number, tiers: QuantityPricingTier[], tota
 const comboKey = (color: string, size: string) => `${color}||${size}`;
 const MAX_QTY = 12;
 
-// ─── Swipeable Image Gallery ──────────────────────────────────────────────────
+// ─── Swipeable Image Gallery (with auto-rotate) ──────────────────────────────
 const ImageGallery = ({ images, productName }: { images: string[]; productName: string }) => {
   const [current, setCurrent] = useState(0);
+  const [paused, setPaused] = useState(false);
   const dragStartX = useRef<number>(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const goNext = useCallback(() => setCurrent(c => (c + 1) % images.length), [images.length]);
   const goPrev = useCallback(() => setCurrent(c => (c - 1 + images.length) % images.length), [images.length]);
-  const handleTouchStart = (e: React.TouchEvent) => { dragStartX.current = e.touches[0].clientX; };
+
+  // Auto-advance every 3s when more than one image and not paused
+  useEffect(() => {
+    if (images.length <= 1 || paused) return;
+    const t = setInterval(() => setCurrent(c => (c + 1) % images.length), 3000);
+    return () => clearInterval(t);
+  }, [images.length, paused]);
+
+  const pauseTemp = () => { setPaused(true); setTimeout(() => setPaused(false), 6000); };
+  const handleTouchStart = (e: React.TouchEvent) => { dragStartX.current = e.touches[0].clientX; pauseTemp(); };
   const handleTouchEnd = (e: React.TouchEvent) => { const d = dragStartX.current - e.changedTouches[0].clientX; if (Math.abs(d) > 50) d > 0 ? goNext() : goPrev(); };
-  const handleMouseDown = (e: React.MouseEvent) => { dragStartX.current = e.clientX; };
+  const handleMouseDown = (e: React.MouseEvent) => { dragStartX.current = e.clientX; pauseTemp(); };
   const handleMouseUp = (e: React.MouseEvent) => { const d = dragStartX.current - e.clientX; if (Math.abs(d) > 50) d > 0 ? goNext() : goPrev(); };
 
   return (
     <div ref={containerRef} className="relative w-full aspect-square overflow-hidden bg-muted select-none"
       onTouchStart={handleTouchStart} onTouchEnd={handleTouchEnd}
-      onMouseDown={handleMouseDown} onMouseUp={handleMouseUp} style={{ cursor: 'grab' }}>
+      onMouseDown={handleMouseDown} onMouseUp={handleMouseUp}
+      onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}
+      style={{ cursor: 'grab' }}>
       <AnimatePresence mode="wait" initial={false}>
         <motion.img key={current} src={images[current]} alt={`${productName} ${current + 1}`}
           className="w-full h-full object-contain pointer-events-none"

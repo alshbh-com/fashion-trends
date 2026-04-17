@@ -19,6 +19,7 @@ const PoliciesPage = lazy(() => import("./pages/PoliciesPage"));
 const InstallPage = lazy(() => import("./pages/InstallPage"));
 const AdminLogin = lazy(() => import("./pages/AdminLogin"));
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const AccessoriesPage = lazy(() => import("./pages/AccessoriesPage"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -57,6 +58,7 @@ const App = () => (
                 <Route path="/install" element={<InstallPage />} />
                 <Route path="/admin" element={<AdminLogin />} />
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                <Route path="/ax" element={<AccessoriesPage />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
