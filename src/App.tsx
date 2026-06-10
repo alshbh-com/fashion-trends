@@ -2,11 +2,20 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { CartProvider } from "@/contexts/CartContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { BottomNav } from "@/components/layout/BottomNav";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
+import { fbTrack } from "@/lib/fbpixel";
+
+const PageViewTracker = () => {
+  const location = useLocation();
+  useEffect(() => {
+    fbTrack('PageView');
+  }, [location.pathname]);
+  return null;
+};
 
 const Index = lazy(() => import("./pages/Index"));
 const ProductPage = lazy(() => import("./pages/ProductPage"));
@@ -44,6 +53,7 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
+          <PageViewTracker />
           <AppShell>
             <Suspense fallback={<Loader />}>
               <Routes>
