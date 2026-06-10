@@ -182,7 +182,8 @@ const AdminDashboard = () => {
             تحديث الثيم
           </Button>
         </div>
-        </div>
+
+
 
         {/* Facebook Pixel Test Events */}
         <div className="bg-card border border-border rounded-xl p-4 space-y-3">
