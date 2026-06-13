@@ -56,7 +56,7 @@ const AdminDashboard = () => {
   const handleAddBanner = async () => {
     if (!bannerUrl || !bannerTitle) { toast.error('أدخل العنوان والصورة'); return; }
     setSaving(true);
-    const { error } = await supabase.from('banners').insert({ image_url: bannerUrl, title: bannerTitle, is_active: true });
+    const { error } = await supabase.from('banners_rows').insert({ image_url: bannerUrl, title: bannerTitle, is_active: true });
     setSaving(false);
     if (error) { toast.error('حدث خطأ'); return; }
     toast.success('تم إضافة البانر');
@@ -65,7 +65,7 @@ const AdminDashboard = () => {
   };
 
   const handleDeleteBanner = async (id: string) => {
-    await supabase.from('banners').delete().eq('id', id);
+    await supabase.from('banners_rows').delete().eq('id', id);
     toast.success('تم حذف البانر');
     refetchBanners();
   };
@@ -73,7 +73,7 @@ const AdminDashboard = () => {
   const handleUpdateTheme = async () => {
     setSaving(true);
     const { error } = await supabase
-      .from('app_settings')
+      .from('app_settings_rows')
       .update({ active_theme: themeHue, theme_mode: themeMode, updated_at: new Date().toISOString() } as any)
       .eq('id', 'main');
     setSaving(false);
@@ -206,7 +206,7 @@ const AdminDashboard = () => {
               setSavingFb(true);
               const cs = { ...(((settings as any)?.custom_settings) ?? {}), fb_test_event_code: fbTestCode || null };
               const { error } = await supabase
-                .from('app_settings')
+                .from('app_settings_rows')
                 .update({ custom_settings: cs, updated_at: new Date().toISOString() } as any)
                 .eq('id', 'main');
               setSavingFb(false);

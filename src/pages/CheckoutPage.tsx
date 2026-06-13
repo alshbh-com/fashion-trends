@@ -70,7 +70,7 @@ const CheckoutPage = () => {
     try {
       // Create customer
       const { data: customer, error: custError } = await supabase
-        .from('customers')
+        .from('customers_rows')
         .insert({ name, phone, address, governorate: selectedGov?.name || '' })
         .select()
         .single();
@@ -79,7 +79,7 @@ const CheckoutPage = () => {
       // Create order
       // total_amount = products only (shipping stored separately to avoid double-counting)
       const { data: order, error: orderError } = await supabase
-        .from('orders')
+        .from('orders_rows')
         .insert({
           customer_id: customer.id,
           total_amount: totalPrice,   // products only — shipping is in shipping_cost field
@@ -102,7 +102,7 @@ const CheckoutPage = () => {
         size: item.size || null,
         product_details: item.name,
       }));
-      const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
+      const { error: itemsError } = await supabase.from('order_items_rows').insert(orderItems);
       if (itemsError) throw itemsError;
 
       setOrderNumber(order.order_number || 0);

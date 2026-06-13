@@ -1,11 +1,9 @@
-import { Tables } from '@/integrations/supabase/types';
 import { Link } from 'react-router-dom';
 import { Badge } from '@/components/ui/badge';
 import { Star } from 'lucide-react';
+import type { StoreProduct } from '@/types/store';
 
-type Product = Tables<'products'> & {
-  product_images?: Tables<'product_images'>[];
-};
+type Product = StoreProduct;
 
 const getDisplayPrice = (product: Product) => {
   if (product.is_offer && product.offer_price) return product.offer_price;

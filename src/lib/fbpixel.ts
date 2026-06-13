@@ -26,7 +26,7 @@ const getTestEventCode = (): Promise<string | undefined> => {
     testCodePromise = (async () => {
       try {
         const { data } = await supabase
-          .from('app_settings')
+          .from('app_settings_rows')
           .select('custom_settings')
           .eq('id', 'main')
           .single();
