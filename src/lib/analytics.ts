@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import type { Json } from '@/integrations/supabase/types';
 
 // Generate/retrieve a session ID for anonymous tracking
 const getSessionId = (): string => {
@@ -20,7 +21,7 @@ export const trackEvent = async (
       event_type: eventType,
       product_id: productId || null,
       session_id: getSessionId(),
-      metadata: metadata || {},
+      metadata: (metadata || {}) as Json,
     });
   } catch {
     // Silent fail — analytics should never block UX
