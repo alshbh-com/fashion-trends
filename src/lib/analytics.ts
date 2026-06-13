@@ -16,7 +16,7 @@ export const trackEvent = async (
   metadata?: Record<string, unknown>
 ) => {
   try {
-    await supabase.from('analytics_events' as any).insert({
+    await supabase.from('analytics_events_rows').insert({
       event_type: eventType,
       product_id: productId || null,
       session_id: getSessionId(),

@@ -1,10 +1,11 @@
 import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAccessoryCategoryIds } from './useAccessoryCategory';
+import type { ProductImageRow, ProductRow, StoreProduct } from '@/types/store';
 
 const PAGE_SIZE = 20;
 
-const attachProductImages = async <T extends { id: string | null }>(products: T[] | null | undefined) => {
+const attachProductImages = async (products: ProductRow[] | null | undefined): Promise<StoreProduct[]> => {
   const safeProducts = products ?? [];
   const productIds = safeProducts.map(product => product.id).filter(Boolean) as string[];
 
@@ -20,16 +21,18 @@ const attachProductImages = async <T extends { id: string | null }>(products: T[
 
   if (error) throw error;
 
+  const safeImages = (images ?? []) as ProductImageRow[];
+
   return safeProducts.map(product => ({
     ...product,
-    product_images: (images ?? []).filter(image => image.product_id === product.id),
+    product_images: safeImages.filter(image => image.product_id === product.id),
     product_color_variants: [],
   }));
 };
 
 export const useProducts = () => {
   const { data: accessoryIds = [] } = useAccessoryCategoryIds();
-  return useInfiniteQuery({
+  return useInfiniteQuery<StoreProduct[]>({
     queryKey: ['products', accessoryIds],
     queryFn: async ({ pageParam = 0 }) => {
       const from = pageParam * PAGE_SIZE;
@@ -55,7 +58,7 @@ export const useProducts = () => {
 
 export const useFeaturedProducts = () => {
   const { data: accessoryIds = [] } = useAccessoryCategoryIds();
-  return useQuery({
+  return useQuery<StoreProduct[]>({
     queryKey: ['featured-products', accessoryIds],
     queryFn: async () => {
       let q = supabase
@@ -75,7 +78,7 @@ export const useFeaturedProducts = () => {
 };
 
 export const useProduct = (id: string) => {
-  return useQuery({
+  return useQuery<StoreProduct | undefined>({
     queryKey: ['product', id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -92,7 +95,7 @@ export const useProduct = (id: string) => {
 };
 
 export const useRelatedProducts = (categoryId: string | null, excludeId: string) => {
-  return useQuery({
+  return useQuery<StoreProduct[]>({
     queryKey: ['related-products', categoryId, excludeId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -110,7 +113,7 @@ export const useRelatedProducts = (categoryId: string | null, excludeId: string)
 
 export const useSearchProducts = (search: string) => {
   const { data: accessoryIds = [] } = useAccessoryCategoryIds();
-  return useQuery({
+  return useQuery<StoreProduct[]>({
     queryKey: ['search-products', search, accessoryIds],
     queryFn: async () => {
       let q = supabase
@@ -132,7 +135,7 @@ export const useSearchProducts = (search: string) => {
 // Accessories-only listing for the hidden /ax page
 export const useAccessoryProducts = () => {
   const { data: accessoryIds = [], isLoading: loadingIds } = useAccessoryCategoryIds();
-  return useQuery({
+  return useQuery<StoreProduct[]>({
     queryKey: ['accessory-products', accessoryIds],
     queryFn: async () => {
       if (accessoryIds.length === 0) return [];

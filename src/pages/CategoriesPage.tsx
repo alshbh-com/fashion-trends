@@ -1,7 +1,6 @@
 import { useCategories } from '@/hooks/useCategories';
 import { useSearchParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { useSearchProducts } from '@/hooks/useProducts';
 import { ProductCard } from '@/components/product/ProductCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion } from 'framer-motion';
@@ -11,20 +10,8 @@ const CategoriesPage = () => {
   const { data: categories, isLoading: catsLoading } = useCategories();
   const [searchParams] = useSearchParams();
   const selectedId = searchParams.get('id');
-
-  const { data: products, isLoading: prodsLoading } = useQuery({
-    queryKey: ['category-products', selectedId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('products')
-        .select('*, product_images(*)')
-        .eq('category_id', selectedId!)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!selectedId,
-  });
+  const { data: allProducts = [], isLoading: prodsLoading } = useSearchProducts('');
+  const products = selectedId ? allProducts.filter(product => product.category_id === selectedId) : [];
 
   const selectedCat = categories?.find(c => c.id === selectedId);
 
