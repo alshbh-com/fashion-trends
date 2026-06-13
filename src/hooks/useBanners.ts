@@ -1,13 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { BannerRow } from '@/types/store';
 
 export const useBanners = () => {
-  const query = useQuery({
+  const query = useQuery<BannerRow[]>({
     queryKey: ['banners'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('banners')
+        .from('banners_rows')
         .select('*')
         .eq('is_active', true)
         .order('display_order', { ascending: true });
@@ -19,7 +20,7 @@ export const useBanners = () => {
   useEffect(() => {
     const channel = supabase
       .channel('banners-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'banners' }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'banners_rows' }, () => {
         query.refetch();
       })
       .subscribe();

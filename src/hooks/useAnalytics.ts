@@ -18,13 +18,13 @@ export const useAnalytics7Days = () => {
 
       // Count by event_type using separate queries for accuracy
       const [visitors, addToCart, checkoutStarts, ordersComplete] = await Promise.all([
-        supabase.from('analytics_events' as any).select('id', { count: 'exact', head: true })
+        supabase.from('analytics_events_rows').select('id', { count: 'exact', head: true })
           .eq('event_type', 'page_visit').gte('created_at', since),
-        supabase.from('analytics_events' as any).select('id', { count: 'exact', head: true })
+        supabase.from('analytics_events_rows').select('id', { count: 'exact', head: true })
           .eq('event_type', 'add_to_cart').gte('created_at', since),
-        supabase.from('analytics_events' as any).select('id', { count: 'exact', head: true })
+        supabase.from('analytics_events_rows').select('id', { count: 'exact', head: true })
           .eq('event_type', 'checkout_start').gte('created_at', since),
-        supabase.from('analytics_events' as any).select('id', { count: 'exact', head: true })
+        supabase.from('analytics_events_rows').select('id', { count: 'exact', head: true })
           .eq('event_type', 'order_complete').gte('created_at', since),
       ]);
 

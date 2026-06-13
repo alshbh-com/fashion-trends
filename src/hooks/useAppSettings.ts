@@ -1,13 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import type { AppSettingsRow } from '@/types/store';
 
 export const useAppSettings = () => {
-  const query = useQuery({
+  const query = useQuery<AppSettingsRow>({
     queryKey: ['app-settings'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('app_settings')
+        .from('app_settings_rows')
         .select('*')
         .eq('id', 'main')
         .single();
@@ -21,7 +22,7 @@ export const useAppSettings = () => {
   useEffect(() => {
     const channel = supabase
       .channel('app-settings-realtime')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_settings' }, () => {
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_settings_rows' }, () => {
         query.refetch();
       })
       .subscribe();
