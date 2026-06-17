@@ -61,7 +61,7 @@ const attachProductImages = async (products: ProductRow[] | null | undefined): P
   }
 
   const { data: images, error } = await supabase
-    .from('product_images_rows')
+    .from('product_images')
     .select('*')
     .in('product_id', productIds)
     .order('display_order', { ascending: true });
@@ -83,7 +83,7 @@ export const useProducts = () => {
       const from = Number(pageParam) * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
       let q = supabase
-        .from('products_rows')
+        .from('products')
         .select('*')
         .order('created_at', { ascending: false })
         .range(from, to);
@@ -107,7 +107,7 @@ export const useFeaturedProducts = () => {
     queryKey: ['featured-products', accessoryIds],
     queryFn: async () => {
       let q = supabase
-        .from('products_rows')
+        .from('products')
         .select('*')
         .eq('is_featured', true)
         .order('created_at', { ascending: false })
@@ -127,7 +127,7 @@ export const useProduct = (id: string) => {
     queryKey: ['product', id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('products_rows')
+        .from('products')
         .select('*')
         .eq('id', id)
         .single();
@@ -144,7 +144,7 @@ export const useRelatedProducts = (categoryId: string | null, excludeId: string)
     queryKey: ['related-products', categoryId, excludeId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('products_rows')
+        .from('products')
         .select('*')
         .eq('category_id', categoryId!)
         .neq('id', excludeId)
@@ -162,7 +162,7 @@ export const useSearchProducts = (search: string) => {
     queryKey: ['search-products', search, accessoryIds],
     queryFn: async () => {
       let q = supabase
-        .from('products_rows')
+        .from('products')
         .select('*')
         .or(`name.ilike.%${search}%,name_ar.ilike.%${search}%`)
         .limit(30);
@@ -185,7 +185,7 @@ export const useAccessoryProducts = () => {
     queryFn: async () => {
       if (accessoryIds.length === 0) return [];
       const { data, error } = await supabase
-        .from('products_rows')
+        .from('products')
         .select('*')
         .in('category_id', accessoryIds)
         .order('created_at', { ascending: false });

@@ -305,13 +305,13 @@ const ProductPage = () => {
     fbTrack('InitiateCheckout', { content_ids: [product.id], value: grandTotal, currency: 'EGP', num_items: totalQty });
     try {
       const { data: customer, error: custErr } = await supabase
-        .from('customers_rows')
+        .from('customers')
         .insert({ name: buyName, phone: buyPhone, address: buyAddress, governorate: selectedGov?.name || '' })
         .select('id')
         .single<CreatedCustomer>();
       if (custErr) throw custErr;
       const { data: order, error: orderErr } = await supabase
-        .from('orders_rows')
+        .from('orders')
         .insert({ customer_id: customer.id, total_amount: totalProductPrice, shipping_cost: shippingCost, governorate_id: buyGovId, notes: buyNotes || null, status: 'pending' })
         .select('id, order_number')
         .single<CreatedOrder>();
@@ -321,7 +321,7 @@ const ProductPage = () => {
         color: v.color || null, size: v.size || null,
         product_details: `${product.name}${v.color ? ` - ${v.color}` : ''}${v.size ? ` - ${v.size}` : ''}`,
       }));
-      const { error: itemsErr } = await supabase.from('order_items_rows').insert(orderItems);
+      const { error: itemsErr } = await supabase.from('order_items').insert(orderItems);
       if (itemsErr) throw itemsErr;
       trackEvent('order_complete', product.id, { qty: totalQty, order_id: order.id });
       fbTrack('Purchase', { content_ids: [product.id], value: grandTotal, currency: 'EGP', num_items: totalQty });

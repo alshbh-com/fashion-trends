@@ -7,7 +7,7 @@ export const useGovernorates = () => {
     queryKey: ['governorates'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('governorates_rows')
+        .from('governorates')
         .select('*')
         .order('name', { ascending: true });
       if (error) throw error;

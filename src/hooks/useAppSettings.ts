@@ -8,7 +8,7 @@ export const useAppSettings = () => {
     queryKey: ['app-settings'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('app_settings_rows')
+        .from('app_settings')
         .select('*')
         .eq('id', 'main')
         .single();

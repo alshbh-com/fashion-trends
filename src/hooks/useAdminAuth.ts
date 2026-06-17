@@ -17,7 +17,7 @@ export const useAdminAuth = () => {
 
   const login = useCallback(async (password: string): Promise<boolean> => {
     const { data, error } = await supabase
-      .from('system_passwords_rows')
+      .from('system_passwords')
       .select('password')
       .eq('id', 'admin_password')
       .single();

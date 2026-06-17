@@ -8,7 +8,7 @@ export const useBanners = () => {
     queryKey: ['banners'],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from('banners_rows')
+        .from('banners')
         .select('*')
         .eq('is_active', true)
         .order('display_order', { ascending: true });

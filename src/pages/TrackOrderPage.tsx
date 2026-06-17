@@ -31,7 +31,7 @@ const TrackOrderPage = () => {
 
     const num = parseInt(orderNum.replace('#', ''));
     const { data, error } = await supabase
-      .from('orders_rows')
+      .from('orders')
       .select('*')
       .eq('order_number', num)
       .single();
