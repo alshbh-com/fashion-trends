@@ -59,6 +59,10 @@ const CheckoutPage = () => {
       toast.error('يرجى ملء جميع الحقول المطلوبة');
       return;
     }
+    if (!/^\d{11}$/.test(phone)) {
+      toast.error('رقم الهاتف يجب أن يكون 11 رقم بالضبط');
+      return;
+    }
     setIsSubmitting(true);
     trackEvent('checkout_start');
     fbTrack('InitiateCheckout', {
@@ -162,7 +166,7 @@ const CheckoutPage = () => {
           </div>
           <div>
             <label className="text-sm font-semibold mb-1 block">رقم الهاتف *</label>
-            <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="01xxxxxxxxx" className="rounded-xl" type="tel" required dir="ltr" />
+            <Input value={phone} onChange={e => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))} placeholder="01xxxxxxxxx" className="rounded-xl" type="tel" inputMode="numeric" pattern="[0-9]{11}" minLength={11} maxLength={11} required dir="ltr" />
           </div>
           <div>
             <label className="text-sm font-semibold mb-1 block">المحافظة *</label>
