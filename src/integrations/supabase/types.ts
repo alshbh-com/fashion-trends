@@ -478,18 +478,21 @@ export type Database = {
       }
       governorates: {
         Row: {
+          agent_shipping_cost: number
           created_at: string | null
           id: string
           name: string
           shipping_cost: number
         }
         Insert: {
+          agent_shipping_cost?: number
           created_at?: string | null
           id?: string
           name: string
           shipping_cost?: number
         }
         Update: {
+          agent_shipping_cost?: number
           created_at?: string | null
           id?: string
           name?: string
@@ -930,6 +933,7 @@ export type Database = {
           order_id: string | null
           return_amount: number
           returned_items: Json
+          shipping_deduction: number
         }
         Insert: {
           created_at?: string | null
@@ -940,6 +944,7 @@ export type Database = {
           order_id?: string | null
           return_amount?: number
           returned_items?: Json
+          shipping_deduction?: number
         }
         Update: {
           created_at?: string | null
@@ -950,6 +955,7 @@ export type Database = {
           order_id?: string | null
           return_amount?: number
           returned_items?: Json
+          shipping_deduction?: number
         }
         Relationships: [
           {
