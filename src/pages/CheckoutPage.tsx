@@ -104,7 +104,7 @@ const CheckoutPage = () => {
         price: item.price,
         color: item.color || null,
         size: item.size || null,
-        product_details: item.name,
+        product_details: `${item.name}${item.color ? ` - ${item.color}` : ''}${item.size ? ` - ${item.size}` : ''}`,
       }));
       const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
       if (itemsError) throw itemsError;
