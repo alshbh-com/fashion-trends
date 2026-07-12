@@ -1,7 +1,7 @@
 // Facebook Conversions API proxy — server-side event tracking
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 
-const PIXEL_ID = Deno.env.get('FB_PIXEL_ID') ?? '1515136773744934';
+const PIXEL_ID = Deno.env.get('FB_PIXEL_ID') ?? '1419865112929170';
 const ACCESS_TOKEN = Deno.env.get('FB_CAPI_ACCESS_TOKEN');
 
 async function sha256(input: string): Promise<string> {
