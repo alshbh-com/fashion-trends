@@ -59,8 +59,8 @@ const CheckoutPage = () => {
       toast.error('يرجى ملء جميع الحقول المطلوبة');
       return;
     }
-    if (!/^\d{11}$/.test(phone)) {
-      toast.error('رقم الهاتف يجب أن يكون 11 رقم بالضبط');
+    if (!/^01[012]\d{8}$/.test(phone)) {
+      toast.error('رقم الهاتف يجب أن يبدأ بـ 010 أو 011 أو 012 ويكون 11 رقم');
       return;
     }
     setIsSubmitting(true);
