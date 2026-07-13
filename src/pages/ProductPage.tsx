@@ -609,7 +609,7 @@ const ProductPage = () => {
             </div>
             <div>
               <label className="text-xs font-semibold mb-1 block">رقم الهاتف *</label>
-              <Input value={buyPhone} onChange={e => setBuyPhone(e.target.value)} placeholder="01xxxxxxxxx" className="rounded-xl h-11" type="tel" dir="ltr" required />
+              <Input value={buyPhone} onChange={e => setBuyPhone(e.target.value.replace(/\D/g, '').slice(0, 11))} placeholder="01xxxxxxxxx" className="rounded-xl h-11" type="tel" inputMode="numeric" pattern="01[012][0-9]{8}" minLength={11} maxLength={11} dir="ltr" required />
             </div>
             <div>
               <label className="text-xs font-semibold mb-1 block">المحافظة *</label>
