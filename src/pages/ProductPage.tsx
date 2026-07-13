@@ -300,6 +300,7 @@ const ProductPage = () => {
     e.preventDefault();
     if (!isSelectionValid) { toast.error('يرجى اختيار اللون والمقاس لكل قطعة'); return; }
     if (!buyName || !buyPhone || !buyAddress || !buyGovId) { toast.error('يرجى ملء جميع الحقول المطلوبة'); return; }
+    if (!/^01[012]\d{8}$/.test(buyPhone)) { toast.error('رقم الهاتف يجب أن يبدأ بـ 010 أو 011 أو 012 ويكون 11 رقم'); return; }
     setIsSubmitting(true);
     trackEvent('checkout_start', product.id, { qty: totalQty });
     fbTrack('InitiateCheckout', { content_ids: [product.id], value: grandTotal, currency: 'EGP', num_items: totalQty });
