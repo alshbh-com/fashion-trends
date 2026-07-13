@@ -300,6 +300,7 @@ const ProductPage = () => {
     e.preventDefault();
     if (!isSelectionValid) { toast.error('يرجى اختيار اللون والمقاس لكل قطعة'); return; }
     if (!buyName || !buyPhone || !buyAddress || !buyGovId) { toast.error('يرجى ملء جميع الحقول المطلوبة'); return; }
+    if (!/^01[012]\d{8}$/.test(buyPhone)) { toast.error('رقم الهاتف يجب أن يبدأ بـ 010 أو 011 أو 012 ويكون 11 رقم'); return; }
     setIsSubmitting(true);
     trackEvent('checkout_start', product.id, { qty: totalQty });
     fbTrack('InitiateCheckout', { content_ids: [product.id], value: grandTotal, currency: 'EGP', num_items: totalQty });
@@ -608,7 +609,7 @@ const ProductPage = () => {
             </div>
             <div>
               <label className="text-xs font-semibold mb-1 block">رقم الهاتف *</label>
-              <Input value={buyPhone} onChange={e => setBuyPhone(e.target.value)} placeholder="01xxxxxxxxx" className="rounded-xl h-11" type="tel" dir="ltr" required />
+              <Input value={buyPhone} onChange={e => setBuyPhone(e.target.value.replace(/\D/g, '').slice(0, 11))} placeholder="01xxxxxxxxx" className="rounded-xl h-11" type="tel" inputMode="numeric" pattern="01[012][0-9]{8}" minLength={11} maxLength={11} dir="ltr" required />
             </div>
             <div>
               <label className="text-xs font-semibold mb-1 block">المحافظة *</label>
